@@ -20,8 +20,8 @@
 
 package com.derpgroup.astrobot.manager;
 
-import com.derpgroup.astrobot.voice.model.ServiceInput;
-import com.derpgroup.astrobot.voice.model.ServiceOutput;
+import com.derpgroup.derpwizard.voice.model.ServiceInput;
+import com.derpgroup.derpwizard.voice.model.ServiceOutput;
 
 /**
  * Manager class for dispatching input messages.
