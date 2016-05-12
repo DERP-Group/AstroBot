@@ -1,0 +1,40 @@
+{
+  "server": {
+    "applicationConnectors": [
+      {
+        "type": "http",
+        "port" : 8080
+      },
+      {
+        "type": "https",
+        "port" : 8443,
+        "keyStorePath": "/var/lib/astrobot/keystore.jks",
+        "keyStorePassword": "changeit",
+        "trustStorePath": "/usr/lib/jvm/jre/lib/security/cacerts",
+        "certAlias": "selfsigned"
+      }
+    ],
+    "adminConnectors": [
+      {
+        "type": "http",
+        "port": 8081
+      }
+    ]
+  },
+  "logging": {
+    "level": "INFO",
+    "loggers": {
+      "com.derpgroup": {
+        "level": "INFO",
+        "appenders": [
+          {
+            "type": "file",
+            "currentLogFilename": "/var/log/astrobot/astrobot.log",
+            "archivedLogFilenamePattern": "/var/log/astrobot/astrobot-%d.log",
+            "archivedFileCount": 5
+          }
+        ]
+      }
+    }
+  }
+}
