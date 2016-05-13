@@ -47,8 +47,9 @@ import com.amazon.speech.speechlet.SpeechletRequest;
 import com.amazon.speech.speechlet.SpeechletResponse;
 import com.amazon.speech.ui.SimpleCard;
 import com.amazon.speech.ui.SsmlOutputSpeech;
+import com.derpgroup.astrobot.MixInModule;
 import com.derpgroup.astrobot.configuration.MainConfig;
-import com.derpgroup.astrobot.manager.DerpWizardManager;
+import com.derpgroup.astrobot.manager.AstroBotManager;
 import com.derpgroup.derpwizard.voice.alexa.AlexaUtils;
 import com.derpgroup.derpwizard.voice.exception.DerpwizardException;
 import com.derpgroup.derpwizard.voice.exception.DerpwizardException.DerpwizardExceptionReasons;
@@ -65,22 +66,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * 
  * @author David
  * @author Eric
- * @author Rusty
- * @author Paul
  * @since 0.0.1
  */
 @Path("/alexa")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class AlexaResource {
+public class AstroBotAlexaResource {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AlexaResource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AstroBotAlexaResource.class);
   private static final String ALEXA_VERSION = "1.1.1";
 
-  private DerpWizardManager manager;
+  private AstroBotManager manager;
+  private ObjectMapper mapper;
 
-  public AlexaResource(MainConfig config, Environment env) {
-    manager = new DerpWizardManager();
+  public AstroBotAlexaResource(MainConfig config, Environment env) {
+    manager = new AstroBotManager(config);
+
+    mapper = new ObjectMapper().registerModule(new MixInModule());
   }
 
   /**
@@ -92,7 +94,6 @@ public class AlexaResource {
   public SpeechletResponseEnvelope doAlexaRequest(@NotNull @Valid SpeechletRequestEnvelope request, @HeaderParam("SignatureCertChainUrl") String signatureCertChainUrl, 
       @HeaderParam("Signature") String signature, @QueryParam("testFlag") Boolean testFlag){
 
-    ObjectMapper mapper = new ObjectMapper();
     CommonMetadata outputMetadata = null;
     try{
       if (request.getRequest() == null) {

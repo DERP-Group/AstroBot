@@ -3,13 +3,13 @@
     "applicationConnectors": [
       {
         "type": "http",
-        "port" : 8080
+        "port" : 11080
       }
     ],
     "adminConnectors": [
       {
         "type": "http",
-        "port": 8081
+        "port": 11081
       }
     ]
   },

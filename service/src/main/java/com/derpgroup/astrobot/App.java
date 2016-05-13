@@ -28,8 +28,7 @@ import java.io.IOException;
 
 import com.derpgroup.astrobot.configuration.MainConfig;
 import com.derpgroup.astrobot.health.BasicHealthCheck;
-import com.derpgroup.astrobot.resource.AlexaResource;
-import com.derpgroup.astrobot.resource.HomeResource;
+import com.derpgroup.astrobot.resource.AstroBotAlexaResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
@@ -59,7 +58,6 @@ public class App extends Application<MainConfig> {
     environment.healthChecks().register("basics", new BasicHealthCheck(config, environment));
 
     // Resources
-    environment.jersey().register(new HomeResource(config, environment));
-    environment.jersey().register(new AlexaResource(config, environment));
+    environment.jersey().register(new AstroBotAlexaResource(config, environment));
   }
 }

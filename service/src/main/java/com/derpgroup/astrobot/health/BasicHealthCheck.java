@@ -28,7 +28,7 @@ import com.derpgroup.astrobot.configuration.MainConfig;
 /**
  * Health check to verify that the local filesystem is writable.
  *
- * @author Rusty Gerard
+ * @author Eric Olson
  * @since 0.0.1
  */
 public class BasicHealthCheck extends HealthCheck {

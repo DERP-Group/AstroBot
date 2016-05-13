@@ -35,8 +35,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 import com.codahale.metrics.health.HealthCheckRegistry;
 import com.derpgroup.astrobot.configuration.MainConfig;
 import com.derpgroup.astrobot.health.BasicHealthCheck;
-import com.derpgroup.astrobot.resource.AlexaResource;
-import com.derpgroup.astrobot.resource.HomeResource;
+import com.derpgroup.astrobot.resource.AstroBotAlexaResource;
 import com.derpgroup.astrobot.App;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -63,7 +62,6 @@ public class AppTest {
 
     // Verify that health checks and resources are correctly registered
     verify(mockHealthChecks).register(Matchers.matches("basics"), Matchers.any(BasicHealthCheck.class));
-    verify(mockJersey).register(Matchers.isA(HomeResource.class));
-    verify(mockJersey).register(Matchers.isA(AlexaResource.class));
+    verify(mockJersey).register(Matchers.isA(AstroBotAlexaResource.class));
   }
 }

@@ -22,12 +22,13 @@ package com.derpgroup.astrobot.configuration;
 
 import io.dropwizard.Configuration;
 
+import com.derpgroup.derpwizard.configuration.DAOConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Top-level configuration class.
  *
- * @author Rusty Gerard
+ * @author Eric Olson
  * @since 0.0.1
  */
 public class MainConfig extends Configuration {
