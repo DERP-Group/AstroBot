@@ -47,6 +47,7 @@ import com.amazon.speech.speechlet.SpeechletRequest;
 import com.amazon.speech.speechlet.SpeechletResponse;
 import com.amazon.speech.ui.SimpleCard;
 import com.amazon.speech.ui.SsmlOutputSpeech;
+import com.derpgroup.astrobot.AstroBotMetadata;
 import com.derpgroup.astrobot.MixInModule;
 import com.derpgroup.astrobot.configuration.MainConfig;
 import com.derpgroup.astrobot.manager.AstroBotManager;
@@ -104,7 +105,7 @@ public class AstroBotAlexaResource {
       }
       
       // Build the Input Metadata object here
-      CommonMetadata inputMetadata = mapper.convertValue(request.getSession().getAttributes(), new TypeReference<CommonMetadata>(){});  // this comes from the client-side session
+      CommonMetadata inputMetadata = mapper.convertValue(request.getSession().getAttributes(), new TypeReference<AstroBotMetadata>(){});  // this comes from the client-side session
       // Populate it with other information here, as required by your service. UserAccount info, echoId, serviceId, info from a database, etc
       
       ///////////////////////////////////
@@ -123,7 +124,7 @@ public class AstroBotAlexaResource {
       // Build the ServiceOutput object //
       ////////////////////////////////////
       ServiceOutput serviceOutput = new ServiceOutput();
-      outputMetadata = mapper.convertValue(request.getSession().getAttributes(), new TypeReference<CommonMetadata>(){});  // this gets sent to the client-side session
+      outputMetadata = mapper.convertValue(request.getSession().getAttributes(), new TypeReference<AstroBotMetadata>(){});  // this gets sent to the client-side session
       ConversationHistoryUtils.registerRequestInConversationHistory(subject, messageAsMap, outputMetadata, outputMetadata.getConversationHistory()); // build the conversation history for the outputMetadata
       serviceOutput.setMetadata(outputMetadata);
       

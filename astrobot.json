@@ -1,4 +1,9 @@
 {
+  "astrobotConfig":{
+    "openNotifyConfig":{
+      "openNotifyApiRootUrl":"http://api.open-notify.org/"
+    }
+  },
   "server": {
     "applicationConnectors": [
       {

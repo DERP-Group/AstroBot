@@ -21,6 +21,9 @@
 package com.derpgroup.astrobot.manager;
 
 import com.derpgroup.astrobot.configuration.MainConfig;
+import com.derpgroup.astrobot.util.opennotify.AstronautsResponse;
+import com.derpgroup.astrobot.util.opennotify.OpenNotifyClient;
+import com.derpgroup.derpwizard.voice.exception.DerpwizardException;
 import com.derpgroup.derpwizard.voice.model.ServiceInput;
 import com.derpgroup.derpwizard.voice.model.ServiceOutput;
 
@@ -33,8 +36,11 @@ import com.derpgroup.derpwizard.voice.model.ServiceOutput;
  */
 public class AstroBotManager {
 
+  private OpenNotifyClient openNotifyClient;
+  
   public AstroBotManager(MainConfig config) {
-    // TODO Auto-generated constructor stub
+    String openNotifyApiRootUrl = config.getAstrobotConfig().getOpenNotifyConfig().getOpenNotifyApiRootUrl();
+    openNotifyClient = new OpenNotifyClient(openNotifyApiRootUrl);
   }
 
   /**
@@ -45,7 +51,7 @@ public class AstroBotManager {
    * @param serviceInput
    * @param serviceOutput
    */
-  public void handleRequest(ServiceInput serviceInput, ServiceOutput serviceOutput){
+  public void handleRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
     switch(serviceInput.getSubject()){
     case "HELP":
       doHelpRequest(serviceInput, serviceOutput);
@@ -92,10 +98,11 @@ public class AstroBotManager {
     }
   }
 
-  private void doPeopleInSpaceRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) {
+  private void doPeopleInSpaceRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
+    AstronautsResponse astronautsResponse = openNotifyClient.getAstronauts();
     serviceOutput.getVisualOutput().setTitle("People in Space");
-    serviceOutput.getVisualOutput().setText("There are currently 6 people in space.");
-    serviceOutput.getVoiceOutput().setSsmltext("There are currently six people in space.");
+    serviceOutput.getVisualOutput().setText("There are currently " + astronautsResponse.getNumber() + " people in space.");
+    serviceOutput.getVoiceOutput().setSsmltext("There are currently " + astronautsResponse.getNumber() + " people in space.");
   }
 
   private void doInternationalSpaceStationRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) {

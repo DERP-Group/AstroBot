@@ -22,6 +22,9 @@ package com.derpgroup.astrobot.configuration;
 
 import io.dropwizard.Configuration;
 
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+
 import com.derpgroup.derpwizard.configuration.DAOConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -34,6 +37,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class MainConfig extends Configuration {
   private boolean prettyPrint = true;
   private DAOConfig daoConfig;
+  @Valid
+  @NotNull
+  private AstrobotConfig astrobotConfig;
 
   @JsonProperty
   public boolean isPrettyPrint() {
@@ -53,5 +59,13 @@ public class MainConfig extends Configuration {
   @JsonProperty
   public void setDaoConfig(DAOConfig daoConfig) {
     this.daoConfig = daoConfig;
+  }
+
+  public AstrobotConfig getAstrobotConfig() {
+    return astrobotConfig;
+  }
+
+  public void setAstrobotConfig(AstrobotConfig astrobotConfig) {
+    this.astrobotConfig = astrobotConfig;
   }
 }
