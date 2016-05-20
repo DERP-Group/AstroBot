@@ -3,11 +3,15 @@ package com.derpgroup.astrobot.configuration;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
-public class AstrobotConfig {
+public class AstroBotConfig {
 
   @Valid
   @NotNull
   private OpenNotifyConfig openNotifyConfig;
+  
+  @Valid
+  @NotNull
+  private GoogleMapsConfig googleMapsConfig;
 
   public OpenNotifyConfig getOpenNotifyConfig() {
     return openNotifyConfig;
@@ -15,5 +19,13 @@ public class AstrobotConfig {
 
   public void setOpenNotifyConfig(OpenNotifyConfig openNotifyConfig) {
     this.openNotifyConfig = openNotifyConfig;
+  }
+
+  public GoogleMapsConfig getGoogleMapsConfig() {
+    return googleMapsConfig;
+  }
+
+  public void setGoogleMapsConfig(GoogleMapsConfig googleMapsConfig) {
+    this.googleMapsConfig = googleMapsConfig;
   }
 }

@@ -39,7 +39,7 @@ public class MainConfig extends Configuration {
   private DAOConfig daoConfig;
   @Valid
   @NotNull
-  private AstrobotConfig astrobotConfig;
+  private AstroBotConfig astroBotConfig;
 
   @JsonProperty
   public boolean isPrettyPrint() {
@@ -61,11 +61,11 @@ public class MainConfig extends Configuration {
     this.daoConfig = daoConfig;
   }
 
-  public AstrobotConfig getAstrobotConfig() {
-    return astrobotConfig;
+  public AstroBotConfig getAstroBotConfig() {
+    return astroBotConfig;
   }
 
-  public void setAstrobotConfig(AstrobotConfig astrobotConfig) {
-    this.astrobotConfig = astrobotConfig;
+  public void setAstroBotConfig(AstroBotConfig astroBotConfig) {
+    this.astroBotConfig = astroBotConfig;
   }
 }

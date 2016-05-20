@@ -21,6 +21,7 @@
 package com.derpgroup.astrobot.resource;
 
 import java.util.Map;
+import java.util.UUID;
 
 import io.dropwizard.setup.Environment;
 
@@ -45,12 +46,17 @@ import com.amazon.speech.speechlet.LaunchRequest;
 import com.amazon.speech.speechlet.SessionEndedRequest;
 import com.amazon.speech.speechlet.SpeechletRequest;
 import com.amazon.speech.speechlet.SpeechletResponse;
+import com.amazon.speech.ui.Card;
+import com.amazon.speech.ui.OutputSpeech;
+import com.amazon.speech.ui.Reprompt;
 import com.amazon.speech.ui.SimpleCard;
 import com.amazon.speech.ui.SsmlOutputSpeech;
 import com.derpgroup.astrobot.AstroBotMetadata;
 import com.derpgroup.astrobot.MixInModule;
 import com.derpgroup.astrobot.configuration.MainConfig;
 import com.derpgroup.astrobot.manager.AstroBotManager;
+import com.derpgroup.derpwizard.model.accountlinking.ExternalAccountLink;
+import com.derpgroup.derpwizard.model.accountlinking.UserAccount;
 import com.derpgroup.derpwizard.voice.alexa.AlexaUtils;
 import com.derpgroup.derpwizard.voice.exception.DerpwizardException;
 import com.derpgroup.derpwizard.voice.exception.DerpwizardException.DerpwizardExceptionReasons;
@@ -95,19 +101,52 @@ public class AstroBotAlexaResource {
   public SpeechletResponseEnvelope doAlexaRequest(@NotNull @Valid SpeechletRequestEnvelope request, @HeaderParam("SignatureCertChainUrl") String signatureCertChainUrl, 
       @HeaderParam("Signature") String signature, @QueryParam("testFlag") Boolean testFlag){
 
-    CommonMetadata outputMetadata = null;
-    try{
+    AstroBotMetadata outputMetadata = null;
+    try {
       if (request.getRequest() == null) {
-        throw new DerpwizardException(DerpwizardExceptionReasons.MISSING_INFO.getSsml(),"Missing request body."); //TODO: create AlexaException
+        throw new DerpwizardException(DerpwizardExceptionReasons.MISSING_INFO.getSsml(),"Missing request body.");
       }
-      if(testFlag == null || testFlag == false){ 
-        AlexaUtils.validateAlexaRequest(request, signatureCertChainUrl, signature);
+  
+      Map<String, Object> sessionAttributes = request.getSession().getAttributes();
+      
+      if(request.getSession() == null || request.getSession().getUser() == null){
+        String message = "Alexa request did not contain a valid userId.";
+        LOG.error(message);
+        throw new DerpwizardException(message);
+      } 
+      
+      String alexaUserId = request.getSession().getUser().getUserId();
+      
+      if(StringUtils.isEmpty(alexaUserId)){
+        String message = "Missing Alexa userId.";
+        LOG.error(message);
+        throw new DerpwizardException(message);
       }
       
-      // Build the Input Metadata object here
-      CommonMetadata inputMetadata = mapper.convertValue(request.getSession().getAttributes(), new TypeReference<AstroBotMetadata>(){});  // this comes from the client-side session
-      // Populate it with other information here, as required by your service. UserAccount info, echoId, serviceId, info from a database, etc
+      /*ExternalAccountLink alexaAccountLink = accountLinkingDAO.getAccountLinkByExternalUserIdAndExternalSystemName(alexaUserId, "ALEXA");
+      String userId = null;
       
+      if(alexaAccountLink == null){     
+        LOG.info("No Alexa account link found for this user, creating a new user account and Alexa link.");
+        userId = UUID.randomUUID().toString();
+        UserAccount userAccount = new UserAccount();
+        userAccount.setUserId(userId);
+        accountLinkingDAO.updateUser(userAccount);
+        
+        ExternalAccountLink accountLink = new ExternalAccountLink();
+        accountLink.setUserId(userId);
+        accountLink.setExternalUserId(alexaUserId);
+        accountLink.setExternalSystemName("ALEXA");
+        accountLinkingDAO.createAccountLink(accountLink);
+      }else{
+        userId = alexaAccountLink.getUserId();
+      }      
+
+      sessionAttributes.put("userId", userId);*/
+      
+      CommonMetadata inputMetadata = mapper.convertValue(sessionAttributes, new TypeReference<AstroBotMetadata>(){});
+      outputMetadata = mapper.convertValue(sessionAttributes, new TypeReference<AstroBotMetadata>(){});
+
       ///////////////////////////////////
       // Build the ServiceInput object //
       ///////////////////////////////////
@@ -117,16 +156,16 @@ public class AstroBotAlexaResource {
       serviceInput.setMessageAsMap(messageAsMap);
       
       SpeechletRequest speechletRequest = (SpeechletRequest)request.getRequest();
-      String subject = getMessageSubject(speechletRequest);
-      serviceInput.setSubject(subject);
+      String intent = AlexaUtils.getMessageSubject(speechletRequest);
+      serviceInput.setSubject(intent);
       
       ////////////////////////////////////
       // Build the ServiceOutput object //
       ////////////////////////////////////
       ServiceOutput serviceOutput = new ServiceOutput();
-      outputMetadata = mapper.convertValue(request.getSession().getAttributes(), new TypeReference<AstroBotMetadata>(){});  // this gets sent to the client-side session
-      ConversationHistoryUtils.registerRequestInConversationHistory(subject, messageAsMap, outputMetadata, outputMetadata.getConversationHistory()); // build the conversation history for the outputMetadata
       serviceOutput.setMetadata(outputMetadata);
+      serviceOutput.setConversationEnded(false);
+      ConversationHistoryUtils.registerRequestInConversationHistory(intent, messageAsMap, outputMetadata, outputMetadata.getConversationHistory());
       
       // Call the service
       manager.handleRequest(serviceInput, serviceOutput);
@@ -135,23 +174,28 @@ public class AstroBotAlexaResource {
       SpeechletResponseEnvelope responseEnvelope = new SpeechletResponseEnvelope();
       Map<String,Object> sessionAttributesOutput = mapper.convertValue(outputMetadata, new TypeReference<Map<String,Object>>(){});
       responseEnvelope.setSessionAttributes(sessionAttributesOutput);
-
-      SpeechletResponse speechletResponse = new SpeechletResponse();
+      
       SimpleCard card;
       SsmlOutputSpeech outputSpeech;
-
-      // If this is the end of the conversation then
+      Reprompt reprompt = null;
+      boolean shouldEndSession = false;
+      
       switch(serviceInput.getSubject()){
       case "END_OF_CONVERSATION":
       case "STOP":
       case "CANCEL":
-        outputSpeech = null;
+        if(serviceOutput.getVoiceOutput() == null || serviceOutput.getVoiceOutput().getSsmltext() == null){
+          outputSpeech = null;
+        }else{
+          outputSpeech = new SsmlOutputSpeech();
+          outputSpeech.setSsml("<speak>"+serviceOutput.getVoiceOutput().getSsmltext()+"</speak>");
+        }
         card = null;
-        speechletResponse.setShouldEndSession(true);
+        shouldEndSession = true;
         break;
       default:
-        if(StringUtils.isNotEmpty(serviceOutput.getVisualOutput().getTitle()) &&
-            StringUtils.isNotEmpty(serviceOutput.getVisualOutput().getText()) ){
+        if(StringUtils.isNotEmpty(serviceOutput.getVisualOutput().getTitle())&&
+            StringUtils.isNotEmpty(serviceOutput.getVisualOutput().getText())){
           card = new SimpleCard();
           card.setTitle(serviceOutput.getVisualOutput().getTitle());
           card.setContent(serviceOutput.getVisualOutput().getText());
@@ -159,19 +203,20 @@ public class AstroBotAlexaResource {
         else{
           card = null;
         }
-        
+        if(serviceOutput.getDelayedVoiceOutput() !=null && StringUtils.isNotEmpty(serviceOutput.getDelayedVoiceOutput().getSsmltext())){
+          reprompt = new Reprompt();
+          SsmlOutputSpeech repromptSpeech = new SsmlOutputSpeech();
+          repromptSpeech.setSsml("<speak>"+serviceOutput.getDelayedVoiceOutput().getSsmltext()+"</speak>");
+          reprompt.setOutputSpeech(repromptSpeech);
+        }
+
         outputSpeech = new SsmlOutputSpeech();
-        outputSpeech.setSsml(serviceOutput.getVoiceOutput().getSsmltext());
-        speechletResponse.setShouldEndSession(serviceOutput.isConversationEnded());
+        outputSpeech.setSsml("<speak>"+serviceOutput.getVoiceOutput().getSsmltext()+"</speak>");
+        shouldEndSession = serviceOutput.isConversationEnded();
         break;
       }
       
-      speechletResponse.setOutputSpeech(outputSpeech);
-      speechletResponse.setCard(card);
-      responseEnvelope.setResponse(speechletResponse);
-      responseEnvelope.setVersion(ALEXA_VERSION);
-  
-      return responseEnvelope;
+      return buildOutput(outputSpeech, card, reprompt, shouldEndSession, outputMetadata);
     }catch(DerpwizardException e){
       LOG.debug(e.getMessage());
       return new DerpwizardExceptionAlexaWrapper(e, "1.0",mapper.convertValue(outputMetadata, new TypeReference<Map<String,Object>>(){}));
@@ -216,5 +261,24 @@ public class AstroBotAlexaResource {
       return "REPEAT";
     }
     return intentRequestName;
+  }
+  
+  private SpeechletResponseEnvelope buildOutput(OutputSpeech outputSpeech, Card card, Reprompt reprompt, boolean shouldEndSession, AstroBotMetadata outputMetadata){
+
+    Map<String,Object> sessionAttributes = mapper.convertValue(outputMetadata, new TypeReference<Map<String,Object>>(){});
+    SpeechletResponseEnvelope responseEnvelope = new SpeechletResponseEnvelope();
+    
+    SpeechletResponse speechletResponse = new SpeechletResponse();
+
+    speechletResponse.setOutputSpeech(outputSpeech);
+    speechletResponse.setCard(card);
+    speechletResponse.setReprompt(reprompt);
+    speechletResponse.setShouldEndSession(shouldEndSession);
+    
+    responseEnvelope.setResponse(speechletResponse);
+    
+    responseEnvelope.setSessionAttributes(sessionAttributes);
+
+    return responseEnvelope;
   }
 }

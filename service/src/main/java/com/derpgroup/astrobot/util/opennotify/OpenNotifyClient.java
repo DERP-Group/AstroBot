@@ -16,6 +16,7 @@ public class OpenNotifyClient {
   private static final Logger LOG = LoggerFactory.getLogger(OpenNotifyClient.class);
 
   private static final String ASTRONAUTS_ENDPOINT = "/astros.json";
+  private static final String SPACE_STATION_LOCATION_ENDPOINT = "/iss-now.json";
   
   private String openNotifyApiRootUri;
   
@@ -33,6 +34,19 @@ public class OpenNotifyClient {
     try {
       HttpResponse<String> response = request.asString();
       return mapper.readValue(response.getBody(), new TypeReference<AstronautsResponse>(){});
+    } catch (Exception e) {
+      LOG.error(e.getMessage());
+      throw new DerpwizardException(e.getMessage());
+    }
+  }
+  
+  public SpaceStationLocationResponse getSpaceStationLocation() throws DerpwizardException{
+
+    GetRequest request = Unirest.get(openNotifyApiRootUri + SPACE_STATION_LOCATION_ENDPOINT);
+    
+    try {
+      HttpResponse<String> response = request.asString();
+      return mapper.readValue(response.getBody(), new TypeReference<SpaceStationLocationResponse>(){});
     } catch (Exception e) {
       LOG.error(e.getMessage());
       throw new DerpwizardException(e.getMessage());

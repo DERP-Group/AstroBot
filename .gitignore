@@ -1,5 +1,6 @@
 ### Application ###
 *.log
+GoogleAPIKey.txt
 user_preferences_db_user.txt
 
 ### Certs and keystores ###
