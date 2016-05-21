@@ -2,6 +2,10 @@
   "astroBotConfig":{
     "openNotifyConfig":{
       "openNotifyApiRootUrl":"http://api.open-notify.org/"
+    },
+    "launchLibraryConfig":{
+      "launchLibraryApiRootUrl":"https://launchlibrary.net",
+      "launchLibraryVersion":"1.2"
     }
   },
   "server": {

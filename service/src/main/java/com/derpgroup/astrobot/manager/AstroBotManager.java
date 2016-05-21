@@ -24,7 +24,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.derpgroup.astrobot.MixInModule;
+import com.derpgroup.astrobot.configuration.AstroBotConfig;
 import com.derpgroup.astrobot.configuration.MainConfig;
+import com.derpgroup.astrobot.util.launchlibrary.Launch;
+import com.derpgroup.astrobot.util.launchlibrary.LaunchLibraryClient;
+import com.derpgroup.astrobot.util.launchlibrary.LaunchesResponse;
 import com.derpgroup.astrobot.util.opennotify.AstronautsResponse;
 import com.derpgroup.astrobot.util.opennotify.OpenNotifyClient;
 import com.derpgroup.astrobot.util.opennotify.SpaceStationLocationResponse;
@@ -54,13 +58,19 @@ public class AstroBotManager {
     ConversationHistoryUtils.getMapper().registerModule(new MixInModule());
   }
   private OpenNotifyClient openNotifyClient;
+  private LaunchLibraryClient launchLibraryClient;
   private GeoApiContext googleMapsGeoApiContext;
   
   public AstroBotManager(MainConfig config) {
-    String openNotifyApiRootUrl = config.getAstroBotConfig().getOpenNotifyConfig().getOpenNotifyApiRootUrl();
+    AstroBotConfig astroBotConfig = config.getAstroBotConfig();
+    String openNotifyApiRootUrl = astroBotConfig.getOpenNotifyConfig().getOpenNotifyApiRootUrl();
     openNotifyClient = new OpenNotifyClient(openNotifyApiRootUrl);
-    String googleMapsApiKey = config.getAstroBotConfig().getGoogleMapsConfig().getApiKey();
+    String googleMapsApiKey = astroBotConfig.getGoogleMapsConfig().getApiKey();
     googleMapsGeoApiContext = new GeoApiContext().setApiKey(googleMapsApiKey);
+    
+    String launchLibraryApiRootUrl = astroBotConfig.getLaunchLibraryConfig().getLaunchLibraryApiRootUrl();
+    String launchLibraryVersion = astroBotConfig.getLaunchLibraryConfig().getLaunchLibraryVersion();
+    launchLibraryClient = new LaunchLibraryClient(launchLibraryApiRootUrl, launchLibraryVersion);
   }
 
   /**
@@ -175,10 +185,14 @@ public class AstroBotManager {
         + locationName + ".");
   }
 
-  private void doNextLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) {
+  private void doNextLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    LaunchesResponse launchesResponse = launchLibraryClient.getNextLaunch();
+    Launch launch = launchesResponse.getLaunches()[0];
     serviceOutput.getVisualOutput().setTitle("Next Launch:");
-    serviceOutput.getVisualOutput().setText("The next launch is May 26");
-    serviceOutput.getVoiceOutput().setSsmltext("The next launch is May 26");
+    String outputString = "The next launch is " + launch.getName() + " on " + launch.getNet();
+    outputString = outputString.replace("&", "and");
+    serviceOutput.getVisualOutput().setText(outputString);
+    serviceOutput.getVoiceOutput().setSsmltext(outputString);
   }
 
   protected void doHelpRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {

@@ -11,6 +11,10 @@ public class AstroBotConfig {
   
   @Valid
   @NotNull
+  private LaunchLibraryConfig launchLibraryConfig;
+  
+  @Valid
+  @NotNull
   private GoogleMapsConfig googleMapsConfig;
 
   public OpenNotifyConfig getOpenNotifyConfig() {
@@ -27,5 +31,13 @@ public class AstroBotConfig {
 
   public void setGoogleMapsConfig(GoogleMapsConfig googleMapsConfig) {
     this.googleMapsConfig = googleMapsConfig;
+  }
+
+  public LaunchLibraryConfig getLaunchLibraryConfig() {
+    return launchLibraryConfig;
+  }
+
+  public void setLaunchLibraryConfig(LaunchLibraryConfig launchLibraryConfig) {
+    this.launchLibraryConfig = launchLibraryConfig;
   }
 }
