@@ -1,8 +1,6 @@
 /**
  * Copyright (C) 2015 David Phillips
  * Copyright (C) 2015 Eric Olson
- * Copyright (C) 2015 Rusty Gerard
- * Copyright (C) 2015 Paul Winters
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +18,8 @@
 
 package com.derpgroup.astrobot.manager;
 
+import java.util.HashSet;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,10 +29,12 @@ import com.derpgroup.astrobot.configuration.MainConfig;
 import com.derpgroup.astrobot.util.launchlibrary.Launch;
 import com.derpgroup.astrobot.util.launchlibrary.LaunchLibraryClient;
 import com.derpgroup.astrobot.util.launchlibrary.LaunchesResponse;
+import com.derpgroup.astrobot.util.opennotify.Astronaut;
 import com.derpgroup.astrobot.util.opennotify.AstronautsResponse;
 import com.derpgroup.astrobot.util.opennotify.OpenNotifyClient;
 import com.derpgroup.astrobot.util.opennotify.SpaceStationLocationResponse;
 import com.derpgroup.derpwizard.voice.exception.DerpwizardException;
+import com.derpgroup.derpwizard.voice.model.ConversationHistoryEntry;
 import com.derpgroup.derpwizard.voice.model.ServiceInput;
 import com.derpgroup.derpwizard.voice.model.ServiceOutput;
 import com.derpgroup.derpwizard.voice.util.ConversationHistoryUtils;
@@ -53,10 +55,20 @@ import com.google.maps.model.LatLng;
  */
 public class AstroBotManager {
   private static final Logger LOG = LoggerFactory.getLogger(AstroBotManager.class);
+  
+  private static final HashSet<String> metaSubjects;
+  
+  static{
+    metaSubjects = new HashSet<String>();
+    metaSubjects.add("REPEAT");
+    metaSubjects.add("YES");
+    metaSubjects.add("NO");
+  }
 
   static {
     ConversationHistoryUtils.getMapper().registerModule(new MixInModule());
   }
+  
   private OpenNotifyClient openNotifyClient;
   private LaunchLibraryClient launchLibraryClient;
   private GeoApiContext googleMapsGeoApiContext;
@@ -64,7 +76,8 @@ public class AstroBotManager {
   public AstroBotManager(MainConfig config) {
     AstroBotConfig astroBotConfig = config.getAstroBotConfig();
     String openNotifyApiRootUrl = astroBotConfig.getOpenNotifyConfig().getOpenNotifyApiRootUrl();
-    openNotifyClient = new OpenNotifyClient(openNotifyApiRootUrl);
+    long astronautsCacheTtl = astroBotConfig.getOpenNotifyConfig().getAstronautsCacheTtl();
+    openNotifyClient = new OpenNotifyClient(openNotifyApiRootUrl, astronautsCacheTtl);
     String googleMapsApiKey = astroBotConfig.getGoogleMapsConfig().getApiKey();
     googleMapsGeoApiContext = new GeoApiContext().setApiKey(googleMapsApiKey);
     
@@ -73,15 +86,8 @@ public class AstroBotManager {
     launchLibraryClient = new LaunchLibraryClient(launchLibraryApiRootUrl, launchLibraryVersion);
   }
 
-  /**
-   * An example primary entry point into the service.
-   * At this point the Resource classes should have mapped any device-specific requests
-   * into standard ServiceInput/ServiceOutput POJOs. As well as mapped any device-specific
-   * requests into service understandable subjects.
-   * @param serviceInput
-   * @param serviceOutput
-   */
   public void handleRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
+    LOG.debug("Doing request of type '" + serviceInput.getSubject() + "'");
     switch(serviceInput.getSubject()){
     case "HELP":
       doHelpRequest(serviceInput, serviceOutput);
@@ -110,12 +116,14 @@ public class AstroBotManager {
     case "YES":
       doYesRequest(serviceInput, serviceOutput);
       break;
-
     case "NO":
       doNoRequest(serviceInput, serviceOutput);
       break;
     case "PEOPLE_IN_SPACE":
       doPeopleInSpaceRequest(serviceInput, serviceOutput);
+      break;
+    case "WHO_IS_IN_SPACE":
+      doWhoIsInSpaceRequest(serviceInput, serviceOutput);
       break;
     case "INTERNATIONAL_SPACE_STATION":
       doInternationalSpaceStationRequest(serviceInput, serviceOutput);
@@ -129,10 +137,43 @@ public class AstroBotManager {
   }
 
   private void doPeopleInSpaceRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
-    AstronautsResponse astronautsResponse = openNotifyClient.getAstronauts();
-    serviceOutput.getVisualOutput().setTitle("People in Space");
+    AstronautsResponse astronautsResponse = openNotifyClient.getAstronautsWithCache();
+    serviceOutput.getVisualOutput().setTitle("Number of People in Space");
     serviceOutput.getVisualOutput().setText("There are currently " + astronautsResponse.getNumber() + " people in space.");
-    serviceOutput.getVoiceOutput().setSsmltext("There are currently " + astronautsResponse.getNumber() + " people in space.");
+    serviceOutput.getVoiceOutput().setSsmltext("There are currently " + astronautsResponse.getNumber() + " people in space. Would you like to hear their names and ships?");
+    LOG.debug("Built service output for 'PEOPLE_IN_SPACE' request.");
+  }
+
+  private void doWhoIsInSpaceRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    AstronautsResponse astronautsResponse = openNotifyClient.getAstronautsWithCache();
+    serviceOutput.getVisualOutput().setTitle("People in Space");
+
+    StringBuilder visualTextBuilder = new StringBuilder("The people currently in space are:\n");
+    StringBuilder voiceSsmlTextBuilder = new StringBuilder("The people currently in space are<break time=\"800ms\" />");
+    
+    HashSet<String> inhabitedSpacecraft = new HashSet<String>();
+    for(Astronaut astronaut : astronautsResponse.getPeople()){
+      inhabitedSpacecraft.add(astronaut.getCraft());
+    }
+    
+    for(Astronaut astronaut : astronautsResponse.getPeople()){
+      
+      visualTextBuilder.append("\n" + astronaut.getName() + ",");
+      voiceSsmlTextBuilder.append(astronaut.getName() + ",");
+      if(inhabitedSpacecraft.size() > 1){
+        visualTextBuilder.append(" on " + astronaut.getCraft());
+        visualTextBuilder.append(" on " + astronaut.getCraft());
+      }
+    }
+    
+    if(inhabitedSpacecraft.size() == 1){
+      String craftName = inhabitedSpacecraft.toArray()[0].toString();
+      visualTextBuilder.append("\n\nThey are all on " + craftName);
+      voiceSsmlTextBuilder.append("<break />They are all on " + craftName);
+    }
+    
+    serviceOutput.getVisualOutput().setText(visualTextBuilder.toString());
+    serviceOutput.getVoiceOutput().setSsmltext(voiceSsmlTextBuilder.toString());
   }
 
   private void doInternationalSpaceStationRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
@@ -205,7 +246,7 @@ public class AstroBotManager {
   protected void doHelloRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
     serviceOutput.getVisualOutput().setTitle("Blast off with AstroBot!");
     serviceOutput.getVisualOutput().setText("Greetings, Earthling. What can I do for you?");
-    serviceOutput.getVoiceOutput().setSsmltext("Greetings, Earthling. What can I do for you?");
+    serviceOutput.getVoiceOutput().setSsmltext("Greetings Earthling. What can I do for you?");
     serviceOutput.setConversationEnded(false);
   }
 
@@ -215,7 +256,7 @@ public class AstroBotManager {
   }
 
   protected void doCancelRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
-    serviceOutput.getVoiceOutput().setSsmltext("Copy that, Houston.");
+    serviceOutput.getVoiceOutput().setSsmltext("Copy that Houston.");
     serviceOutput.setConversationEnded(true);
   }
 
@@ -228,8 +269,16 @@ public class AstroBotManager {
     serviceOutput.setConversationEnded(true);
   }
 
-  protected void doYesRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
-    serviceOutput.setConversationEnded(true);
+  protected void doYesRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(voiceInput.getMetadata().getConversationHistory(), metaSubjects);
+    if(entry.getMessageSubject().equalsIgnoreCase("PEOPLE_IN_SPACE")){
+      doWhoIsInSpaceRequest(voiceInput, serviceOutput);
+    }else{
+      serviceOutput.getVisualOutput().setTitle("Unexpected input.");
+      serviceOutput.getVisualOutput().setText("I received input that seems like an affirmative answer, but I don't recall asking a question.");
+      serviceOutput.getVoiceOutput().setSsmltext("I received input that seems like an affirmative answer, but I don't recall asking a question.");
+      serviceOutput.setConversationEnded(true);
+    }
   }
 
   protected void doNoRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {

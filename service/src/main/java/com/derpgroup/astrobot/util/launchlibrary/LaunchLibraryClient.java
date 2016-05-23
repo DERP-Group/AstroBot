@@ -16,7 +16,6 @@ public class LaunchLibraryClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(LaunchLibraryClient.class);
 
-  private static final String AGENCIES_ENDPOINT = "/agency";
   private static final String LAUNCHES_ENDPOINT = "/launch";
   
   private String launchLibraryApiRootUri;

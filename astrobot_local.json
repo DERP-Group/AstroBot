@@ -1,7 +1,8 @@
 {
   "astroBotConfig":{
     "openNotifyConfig":{
-      "openNotifyApiRootUrl":"http://api.open-notify.org/"
+      "openNotifyApiRootUrl":"http://api.open-notify.org/",
+      "astronautsCacheTtl":86400000
     },
     "launchLibraryConfig":{
       "launchLibraryApiRootUrl":"https://launchlibrary.net",
@@ -23,16 +24,6 @@
     ]
   },
   "logging": {
-    "level": "INFO",
-    "loggers": {
-      "com.derpgroup": {
-        "level": "DEBUG",
-        "appenders": [
-          {
-            "type": "console"
-          }
-        ]
-      }
-    }
+    "level": "DEBUG"
   }
 }

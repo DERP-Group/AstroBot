@@ -1,7 +1,12 @@
 {
   "astroBotConfig":{
     "openNotifyConfig":{
-      "openNotifyApiRootUrl":"http://api.open-notify.org/"
+      "openNotifyApiRootUrl":"http://api.open-notify.org/",
+      "astronautsCacheTtl":86400000
+    },
+    "launchLibraryConfig":{
+      "launchLibraryApiRootUrl":"https://launchlibrary.net",
+      "launchLibraryVersion":"1.2"
     }
   },
   "server": {

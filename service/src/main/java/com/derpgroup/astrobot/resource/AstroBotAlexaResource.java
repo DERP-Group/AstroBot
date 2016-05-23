@@ -1,8 +1,6 @@
 /**
  * Copyright (C) 2015 David Phillips
  * Copyright (C) 2015 Eric Olson
- * Copyright (C) 2015 Rusty Gerard
- * Copyright (C) 2015 Paul Winters
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +19,6 @@
 package com.derpgroup.astrobot.resource;
 
 import java.util.Map;
-import java.util.UUID;
 
 import io.dropwizard.setup.Environment;
 
@@ -81,15 +78,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class AstroBotAlexaResource {
 
   private static final Logger LOG = LoggerFactory.getLogger(AstroBotAlexaResource.class);
-  private static final String ALEXA_VERSION = "1.1.1";
 
   private AstroBotManager manager;
   private ObjectMapper mapper;
 
   public AstroBotAlexaResource(MainConfig config, Environment env) {
+    LOG.info("Instantiating AstroBotAlexaResource...");
     manager = new AstroBotManager(config);
 
     mapper = new ObjectMapper().registerModule(new MixInModule());
+    LOG.info("Instantiated AstroBotAlexaResource.");
   }
 
   /**
@@ -101,6 +99,7 @@ public class AstroBotAlexaResource {
   public SpeechletResponseEnvelope doAlexaRequest(@NotNull @Valid SpeechletRequestEnvelope request, @HeaderParam("SignatureCertChainUrl") String signatureCertChainUrl, 
       @HeaderParam("Signature") String signature, @QueryParam("testFlag") Boolean testFlag){
 
+    LOG.debug("Incoming Alexa request.");
     AstroBotMetadata outputMetadata = null;
     try {
       if (request.getRequest() == null) {
@@ -144,6 +143,7 @@ public class AstroBotAlexaResource {
 
       sessionAttributes.put("userId", userId);*/
       
+      
       CommonMetadata inputMetadata = mapper.convertValue(sessionAttributes, new TypeReference<AstroBotMetadata>(){});
       outputMetadata = mapper.convertValue(sessionAttributes, new TypeReference<AstroBotMetadata>(){});
 
@@ -168,6 +168,7 @@ public class AstroBotAlexaResource {
       ConversationHistoryUtils.registerRequestInConversationHistory(intent, messageAsMap, outputMetadata, outputMetadata.getConversationHistory());
       
       // Call the service
+      LOG.debug("Passing request to manager for handling.");
       manager.handleRequest(serviceInput, serviceOutput);
   
       // Build the Alexa response object
