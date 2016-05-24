@@ -6,7 +6,8 @@
     },
     "launchLibraryConfig":{
       "launchLibraryApiRootUrl":"https://launchlibrary.net",
-      "launchLibraryVersion":"1.2"
+      "launchLibraryVersion":"1.2",
+      "launchesCacheTtl":21600000
     }
   },
   "server": {

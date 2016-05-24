@@ -6,8 +6,9 @@ public class LaunchLibraryConfig {
 
   @NotNull
   private String launchLibraryApiRootUrl;
-  
+  @NotNull
   private String launchLibraryVersion = "1.2";
+  private long launchesCacheTtl = 21600000;
 
   public String getLaunchLibraryApiRootUrl() {
     return launchLibraryApiRootUrl;
@@ -23,5 +24,13 @@ public class LaunchLibraryConfig {
 
   public void setLaunchLibraryVersion(String launchLibraryVersion) {
     this.launchLibraryVersion = launchLibraryVersion;
+  }
+
+  public long getLaunchesCacheTtl() {
+    return launchesCacheTtl;
+  }
+
+  public void setLaunchesCacheTtl(long launchesCacheTtl) {
+    this.launchesCacheTtl = launchesCacheTtl;
   }
 }

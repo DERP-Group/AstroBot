@@ -5,6 +5,7 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.derpgroup.astrobot.util.CacheTuple;
 import com.derpgroup.derpwizard.voice.exception.DerpwizardException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,17 +23,22 @@ public class LaunchLibraryClient {
   private String launchLibraryVersion;
   
   private ObjectMapper mapper;
+  private CacheTuple<LaunchesResponse> launchesResponseCache;
+
+  private long launchesCacheTtl = 10000;
   
-  public LaunchLibraryClient(String launchLibraryApiRootUri, String launchLibraryVersion){
+  public LaunchLibraryClient(String launchLibraryApiRootUri, String launchLibraryVersion, long launchesCacheTtl){
     this.launchLibraryApiRootUri = launchLibraryApiRootUri;
     this.launchLibraryVersion = launchLibraryVersion;
+    this.launchesCacheTtl = launchesCacheTtl;
     
     mapper = new ObjectMapper();
+    launchesResponseCache = new CacheTuple<LaunchesResponse>();
   }
   
-  public LaunchesResponse getNextLaunch() throws DerpwizardException{
+  public LaunchesResponse getUpcomingLaunches() throws DerpwizardException{
     HashMap<String, Object> queryParams = new HashMap<String, Object>();
-    queryParams.put("next", "1");
+    queryParams.put("next", "10");
     String uri = launchLibraryApiRootUri + "/" + launchLibraryVersion + LAUNCHES_ENDPOINT;
     HttpRequest request = Unirest.get(uri).queryString(queryParams);
     LOG.info("Request Url: " + request.getUrl());
@@ -43,6 +49,21 @@ public class LaunchLibraryClient {
     } catch (Exception e) {
       LOG.error(e.getMessage());
       throw new DerpwizardException(e.getMessage());
+    }
+  }
+  
+  public LaunchesResponse getUpcomingLaunchesWithCache() throws DerpwizardException{
+
+    LaunchesResponse response = launchesResponseCache.get();
+    long now = System.currentTimeMillis();
+    if(response == null || launchesResponseCache.getTtl() < now){
+      response = getUpcomingLaunches();
+      launchesResponseCache.update(response, now + launchesCacheTtl);
+      LOG.debug("Launches cache miss.");
+      return response;
+    }else{
+      LOG.debug("Launches cache hit.");
+      return response;
     }
   }
 

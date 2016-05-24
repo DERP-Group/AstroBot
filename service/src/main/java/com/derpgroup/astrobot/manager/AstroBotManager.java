@@ -23,9 +23,12 @@ import java.util.HashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.derpgroup.astrobot.AstroBotMetadata;
 import com.derpgroup.astrobot.MixInModule;
 import com.derpgroup.astrobot.configuration.AstroBotConfig;
+import com.derpgroup.astrobot.configuration.LaunchLibraryConfig;
 import com.derpgroup.astrobot.configuration.MainConfig;
+import com.derpgroup.astrobot.configuration.OpenNotifyConfig;
 import com.derpgroup.astrobot.util.launchlibrary.Launch;
 import com.derpgroup.astrobot.util.launchlibrary.LaunchLibraryClient;
 import com.derpgroup.astrobot.util.launchlibrary.LaunchesResponse;
@@ -63,6 +66,8 @@ public class AstroBotManager {
     metaSubjects.add("REPEAT");
     metaSubjects.add("YES");
     metaSubjects.add("NO");
+    metaSubjects.add("NEXT");
+    metaSubjects.add("PREVIOUS");
   }
 
   static {
@@ -75,20 +80,36 @@ public class AstroBotManager {
   
   public AstroBotManager(MainConfig config) {
     AstroBotConfig astroBotConfig = config.getAstroBotConfig();
-    String openNotifyApiRootUrl = astroBotConfig.getOpenNotifyConfig().getOpenNotifyApiRootUrl();
-    long astronautsCacheTtl = astroBotConfig.getOpenNotifyConfig().getAstronautsCacheTtl();
+    
+    OpenNotifyConfig openNotifyConfig = astroBotConfig.getOpenNotifyConfig();
+    String openNotifyApiRootUrl = openNotifyConfig.getOpenNotifyApiRootUrl();
+    long astronautsCacheTtl = openNotifyConfig.getAstronautsCacheTtl();
     openNotifyClient = new OpenNotifyClient(openNotifyApiRootUrl, astronautsCacheTtl);
     String googleMapsApiKey = astroBotConfig.getGoogleMapsConfig().getApiKey();
     googleMapsGeoApiContext = new GeoApiContext().setApiKey(googleMapsApiKey);
     
-    String launchLibraryApiRootUrl = astroBotConfig.getLaunchLibraryConfig().getLaunchLibraryApiRootUrl();
-    String launchLibraryVersion = astroBotConfig.getLaunchLibraryConfig().getLaunchLibraryVersion();
-    launchLibraryClient = new LaunchLibraryClient(launchLibraryApiRootUrl, launchLibraryVersion);
+    LaunchLibraryConfig launchLibraryConfig = astroBotConfig.getLaunchLibraryConfig();
+    String launchLibraryApiRootUrl = launchLibraryConfig.getLaunchLibraryApiRootUrl();
+    String launchLibraryVersion = launchLibraryConfig.getLaunchLibraryVersion();
+    long launchesCacheTtl = launchLibraryConfig.getLaunchesCacheTtl();
+    launchLibraryClient = new LaunchLibraryClient(launchLibraryApiRootUrl, launchLibraryVersion, launchesCacheTtl);
   }
 
   public void handleRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
     LOG.debug("Doing request of type '" + serviceInput.getSubject() + "'");
     switch(serviceInput.getSubject()){
+    case "PEOPLE_IN_SPACE":
+      doPeopleInSpaceRequest(serviceInput, serviceOutput);
+      break;
+    case "WHO_IS_IN_SPACE":
+      doWhoIsInSpaceRequest(serviceInput, serviceOutput);
+      break;
+    case "INTERNATIONAL_SPACE_STATION":
+      doInternationalSpaceStationRequest(serviceInput, serviceOutput);
+      break;
+    case "NEXT_LAUNCH":
+      doNextLaunchRequest(serviceInput, serviceOutput);
+      break;
     case "HELP":
       doHelpRequest(serviceInput, serviceOutput);
       break;
@@ -119,20 +140,14 @@ public class AstroBotManager {
     case "NO":
       doNoRequest(serviceInput, serviceOutput);
       break;
-    case "PEOPLE_IN_SPACE":
-      doPeopleInSpaceRequest(serviceInput, serviceOutput);
+    case "NEXT":
+      doNextRequest(serviceInput, serviceOutput);
       break;
-    case "WHO_IS_IN_SPACE":
-      doWhoIsInSpaceRequest(serviceInput, serviceOutput);
-      break;
-    case "INTERNATIONAL_SPACE_STATION":
-      doInternationalSpaceStationRequest(serviceInput, serviceOutput);
-      break;
-    case "NEXT_LAUNCH":
-      doNextLaunchRequest(serviceInput, serviceOutput);
+    case "PREVIOUS":
+      doPreviousRequest(serviceInput, serviceOutput);
       break;
     default:
-      break;
+      throw new DerpwizardException("Unrecognized request subject '" + serviceInput.getSubject() + "'.");
     }
   }
 
@@ -227,13 +242,27 @@ public class AstroBotManager {
   }
 
   private void doNextLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
-    LaunchesResponse launchesResponse = launchLibraryClient.getNextLaunch();
-    Launch launch = launchesResponse.getLaunches()[0];
+    doIndexedUpcomingLaunchRequest(serviceInput, serviceOutput, 0);
+  }
+  
+  private void doIndexedUpcomingLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput, int index) throws DerpwizardException {
+
+    LaunchesResponse launchesResponse = launchLibraryClient.getUpcomingLaunchesWithCache();
+    if(index < 0 || launchesResponse.getLaunches() == null || index > launchesResponse.getLaunches().length){
+      throw new DerpwizardException("Looks like we've reached the end of the line - no more launches to talk about in that direction.");
+    }
+    Launch launch = launchesResponse.getLaunches()[index];
     serviceOutput.getVisualOutput().setTitle("Next Launch:");
-    String outputString = "The next launch is " + launch.getName() + " on " + launch.getNet();
+    StringBuilder outputStringBuilder = new StringBuilder("The next launch is " + launch.getName());
+    outputStringBuilder.append(" on ");
+    outputStringBuilder.append(launch.getNet());
+    outputStringBuilder.append(". To hear about another launch, say \"next\".");
+    String outputString = outputStringBuilder.toString();
     outputString = outputString.replace("&", "and");
     serviceOutput.getVisualOutput().setText(outputString);
     serviceOutput.getVoiceOutput().setSsmltext(outputString);
+    AstroBotMetadata metadata = (AstroBotMetadata)serviceOutput.getMetadata();
+    metadata.setUpcomingLaunchesIndex(index);
   }
 
   protected void doHelpRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
@@ -281,7 +310,35 @@ public class AstroBotManager {
     }
   }
 
-  protected void doNoRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
-    serviceOutput.setConversationEnded(true);
+  protected void doNoRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) {
+    doCancelRequest(serviceInput, serviceOutput);
+  }
+
+  private void doNextRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), metaSubjects);
+    
+    if(entry.getMessageSubject().equalsIgnoreCase("NEXT_LAUNCH")){
+      int index = ((AstroBotMetadata)serviceInput.getMetadata()).getUpcomingLaunchesIndex();
+      doIndexedUpcomingLaunchRequest(serviceInput, serviceOutput, index + 1);
+    }else{
+      serviceOutput.getVisualOutput().setTitle("Unexpected input.");
+      serviceOutput.getVisualOutput().setText("I received input that seems like you want the next entry, but I don't know for what.");
+      serviceOutput.getVoiceOutput().setSsmltext("I received input that seems like you want the next entry, but I don't know for what.");
+      serviceOutput.setConversationEnded(true);
+    }
+  }
+
+  private void doPreviousRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), metaSubjects);
+    
+    if(entry.getMessageSubject().equalsIgnoreCase("NEXT_LAUNCH")){
+      int index = ((AstroBotMetadata)serviceInput.getMetadata()).getUpcomingLaunchesIndex();
+      doIndexedUpcomingLaunchRequest(serviceInput, serviceOutput, index - 1);
+    }else{
+      serviceOutput.getVisualOutput().setTitle("Unexpected input.");
+      serviceOutput.getVisualOutput().setText("I received input that seems like you want the previous entry, but I don't know for what.");
+      serviceOutput.getVoiceOutput().setSsmltext("I received input that seems like you want the previous entry, but I don't know for what.");
+      serviceOutput.setConversationEnded(true);
+    }
   }
 }
