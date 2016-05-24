@@ -110,6 +110,9 @@ public class AstroBotManager {
     case "NEXT_LAUNCH":
       doNextLaunchRequest(serviceInput, serviceOutput);
       break;
+    case "NEXT_LAUNCH_FOR_AGENCY":
+      doNextLaunchByAgencyRequest(serviceInput, serviceOutput);
+      break;
     case "HELP":
       doHelpRequest(serviceInput, serviceOutput);
       break;
@@ -243,6 +246,10 @@ public class AstroBotManager {
 
   private void doNextLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
     doIndexedUpcomingLaunchRequest(serviceInput, serviceOutput, 0);
+  }
+
+  private void doNextLaunchByAgencyRequest(ServiceInput serviceInput,ServiceOutput serviceOutput) {
+    
   }
   
   private void doIndexedUpcomingLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput, int index) throws DerpwizardException {

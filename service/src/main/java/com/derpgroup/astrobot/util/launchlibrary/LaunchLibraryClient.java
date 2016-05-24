@@ -1,6 +1,8 @@
 package com.derpgroup.astrobot.util.launchlibrary;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,7 @@ public class LaunchLibraryClient {
   public LaunchesResponse getUpcomingLaunches() throws DerpwizardException{
     HashMap<String, Object> queryParams = new HashMap<String, Object>();
     queryParams.put("next", "10");
+    queryParams.put("mode", "verbose");
     String uri = launchLibraryApiRootUri + "/" + launchLibraryVersion + LAUNCHES_ENDPOINT;
     HttpRequest request = Unirest.get(uri).queryString(queryParams);
     LOG.info("Request Url: " + request.getUrl());
@@ -50,6 +53,15 @@ public class LaunchLibraryClient {
       LOG.error(e.getMessage());
       throw new DerpwizardException(e.getMessage());
     }
+  }
+  
+  public List<Launch> getUpcomingLaunchesByAgency(int agencyId) throws DerpwizardException{
+    LaunchesResponse launchesResponse = getUpcomingLaunchesWithCache();
+    List<Launch> launchesToReturn = new ArrayList<Launch>();
+    for(Launch launch : launchesResponse.getLaunches()){
+      
+    }
+    return launchesToReturn;
   }
   
   public LaunchesResponse getUpcomingLaunchesWithCache() throws DerpwizardException{
