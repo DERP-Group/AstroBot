@@ -1,0 +1,57 @@
+{
+  "intents": [
+    {
+      "intent": "INTERNATIONAL_SPACE_STATION",
+      "slots":[
+      ]
+    },
+    {
+      "intent": "PEOPLE_IN_SPACE",
+      "slots":[
+      ]
+    },
+    {
+      "intent": "WHO_IS_IN_SPACE",
+      "slots":[
+      ]
+    },
+    {
+      "intent": "NEXT_LAUNCH",
+      "slots":[
+      ]
+    },
+    {
+      "intent": "NEXT_LAUNCH_FOR_AGENCY",
+      "slots":[
+        {
+          "name":"agencyName",
+          "type":"AGENCIES"
+        }
+      ]
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    },
+    {
+      "intent": "AMAZON.RepeatIntent"
+    },
+    {
+      "intent": "AMAZON.CancelIntent"
+    },
+    {
+      "intent": "AMAZON.StopIntent"
+    },
+    {
+      "intent": "AMAZON.YesIntent"
+    },
+    {
+      "intent": "AMAZON.NoIntent"
+    },
+    {
+      "intent": "AMAZON.NextIntent"
+    },
+    {
+      "intent": "AMAZON.PreviousIntent"
+    }
+  ]
+}

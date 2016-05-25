@@ -1,0 +1,12 @@
+INTERNATIONAL_SPACE_STATION Where is the International Space Station
+INTERNATIONAL_SPACE_STATION Where is the International Space Station currently
+INTERNATIONAL_SPACE_STATION Where is the International Space Station right now
+PEOPLE_IN_SPACE How many people are in space right now
+PEOPLE_IN_SPACE How many people are in space
+WHO_IS_IN_SPACE Who are the people currently in space
+WHO_IS_IN_SPACE What are the names of the people currently in space
+WHO_IS_IN_SPACE Who are the people in space right now
+WHO_IS_IN_SPACE What are the names of the people in space right now
+NEXT_LAUNCH When is the next launch
+NEXT_LAUNCH What is the next launch
+NEXT_LAUNCH_FOR_AGENCY What is the next {agencyName} launch

@@ -18,11 +18,15 @@
 
 package com.derpgroup.astrobot.manager;
 
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -274,21 +278,21 @@ public class AstroBotManager {
       doNextLaunchRequest(serviceInput, serviceOutput);
     }
     String agencyName = serviceInput.getMessageAsMap().get("agencyName");
-    String canonicalAgencyAbbreviation = canonicalAgencyAbbreviations.get(agencyName);
-    int agencyId = launchLibraryClient.getAgencyIdByAbbreviation(canonicalAgencyAbbreviation);
-    doIndexedUpcomingLaunchRequestByAgencyId(serviceInput, serviceOutput, 0, agencyId);
+    doIndexedUpcomingLaunchRequestByAgencyId(serviceInput, serviceOutput, 0, agencyName);
   }
   
   private void doIndexedUpcomingLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput, int index) throws DerpwizardException {
-    doIndexedUpcomingLaunchRequestByAgencyId(serviceInput, serviceOutput, index, 0);
+    doIndexedUpcomingLaunchRequestByAgencyId(serviceInput, serviceOutput, index, null);
   }
   
-  private void doIndexedUpcomingLaunchRequestByAgencyId(ServiceInput serviceInput, ServiceOutput serviceOutput, int index, int agencyId) throws DerpwizardException {
+  private void doIndexedUpcomingLaunchRequestByAgencyId(ServiceInput serviceInput, ServiceOutput serviceOutput, int index, String agencyName) throws DerpwizardException {
     Launch[] launches = new Launch[0];
-    if(agencyId < 1){
+    if(agencyName == null){
       LaunchesResponse launchesResponse = launchLibraryClient.getUpcomingLaunchesWithCache();
       launches = launchesResponse.getLaunches();
     }else{
+      String canonicalAgencyAbbreviation = canonicalAgencyAbbreviations.get(agencyName);
+      int agencyId = launchLibraryClient.getAgencyIdByAbbreviation(canonicalAgencyAbbreviation);
       Set<Launch> launchesResponse = launchLibraryClient.getUpcomingLaunchesByAgency(agencyId);
       launches = launchesResponse.toArray(launches);
     }
@@ -298,10 +302,19 @@ public class AstroBotManager {
       throw new DerpwizardException("Looks like we've reached the end of the line - no more launches to talk about in that direction.");
     }
     Launch launch = launches[index];
+    String launchDateString = launch.getIsostart(); //Would prefer to use timestamps here, but they aren't always provided
+    DateTime launchDateTime = DateTime.parse(launchDateString, DateTimeFormat.forPattern("yyyyMMdd'T'HHmmss'Z'").withZoneUTC());
     serviceOutput.getVisualOutput().setTitle("Next Launch:");
     StringBuilder outputStringBuilder = new StringBuilder("The next launch is " + launch.getName());
-    outputStringBuilder.append(" on ");
-    outputStringBuilder.append(launch.getNet());
+    if(launch.isDateLocked()){
+      outputStringBuilder.append(" on ");
+    }else{
+      outputStringBuilder.append(", targetted for ");
+    }
+    outputStringBuilder.append(launchDateTime.toString(DateTimeFormat.forPattern("MMMM dd',' yyyy")));
+    if(launch.isTimeLocked()){
+      outputStringBuilder.append(" at" + launchDateTime.toString(DateTimeFormat.forPattern(" HH:MM")) + " Universal Time");
+    }
     outputStringBuilder.append(". To hear about another launch, say \"next\".");
     String outputString = outputStringBuilder.toString();
     outputString = outputString.replace("&", "and");
@@ -366,6 +379,13 @@ public class AstroBotManager {
     if(entry.getMessageSubject().equalsIgnoreCase("NEXT_LAUNCH")){
       int index = ((AstroBotMetadata)serviceInput.getMetadata()).getUpcomingLaunchesIndex();
       doIndexedUpcomingLaunchRequest(serviceInput, serviceOutput, index + 1);
+    }else if(entry.getMessageSubject().equalsIgnoreCase("NEXT_LAUNCH_FOR_AGENCY")){
+      String agencyName = entry.getMessageMap().get("agencyName");
+      if(StringUtils.isEmpty(agencyName)){
+        throw new DerpwizardException("Couldn't find an agency name on which to lookup upcoming launches.");
+      }
+      int index = ((AstroBotMetadata)serviceInput.getMetadata()).getUpcomingLaunchesIndex();
+      doIndexedUpcomingLaunchRequestByAgencyId(serviceInput, serviceOutput, index + 1, agencyName);
     }else{
       serviceOutput.getVisualOutput().setTitle("Unexpected input.");
       serviceOutput.getVisualOutput().setText("I received input that seems like you want the next entry, but I don't know for what.");
@@ -380,6 +400,13 @@ public class AstroBotManager {
     if(entry.getMessageSubject().equalsIgnoreCase("NEXT_LAUNCH")){
       int index = ((AstroBotMetadata)serviceInput.getMetadata()).getUpcomingLaunchesIndex();
       doIndexedUpcomingLaunchRequest(serviceInput, serviceOutput, index - 1);
+    }else if(entry.getMessageSubject().equalsIgnoreCase("NEXT_LAUNCH_FOR_AGENCY")){
+      String agencyName = entry.getMessageMap().get("agencyName");
+      if(StringUtils.isEmpty(agencyName)){
+        throw new DerpwizardException("Couldn't find an agency name on which to lookup upcoming launches.");
+      }
+      int index = ((AstroBotMetadata)serviceInput.getMetadata()).getUpcomingLaunchesIndex();
+      doIndexedUpcomingLaunchRequestByAgencyId(serviceInput, serviceOutput, index - 1, agencyName);
     }else{
       serviceOutput.getVisualOutput().setTitle("Unexpected input.");
       serviceOutput.getVisualOutput().setText("I received input that seems like you want the previous entry, but I don't know for what.");
