@@ -18,8 +18,11 @@
 
 package com.derpgroup.astrobot.manager;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 
+import org.apache.commons.collections.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +63,7 @@ public class AstroBotManager {
   private static final Logger LOG = LoggerFactory.getLogger(AstroBotManager.class);
   
   private static final HashSet<String> metaSubjects;
+  private static final HashMap<String, String> canonicalAgencyAbbreviations;
   
   static{
     metaSubjects = new HashSet<String>();
@@ -68,6 +72,25 @@ public class AstroBotManager {
     metaSubjects.add("NO");
     metaSubjects.add("NEXT");
     metaSubjects.add("PREVIOUS");
+  }
+  
+  static{
+    canonicalAgencyAbbreviations = new HashMap<String,String>();
+    canonicalAgencyAbbreviations.put("spacex", "SpX");
+    canonicalAgencyAbbreviations.put("spaceexplorationtechnologies","SpX");
+    canonicalAgencyAbbreviations.put("orbital", "OA");
+    canonicalAgencyAbbreviations.put("orbitalatk", "OA");
+    canonicalAgencyAbbreviations.put("orbitalsciencescorporation", "OA");
+    canonicalAgencyAbbreviations.put("allianttechsystems", "OA");
+    canonicalAgencyAbbreviations.put("ula", "ULA");
+    canonicalAgencyAbbreviations.put("unitedlaunchalliance", "ULA");
+    canonicalAgencyAbbreviations.put("arianespace", "ASA");
+    canonicalAgencyAbbreviations.put("jaxa", "JAXA");
+    canonicalAgencyAbbreviations.put("japanaerospaceexplorationagency", "JAXA");
+    canonicalAgencyAbbreviations.put("russianfederalspaceagency", "FKA");
+    canonicalAgencyAbbreviations.put("roscosmos", "FKA");
+    canonicalAgencyAbbreviations.put("nationalaeronauticsandspaceadministration", "NASA");
+    canonicalAgencyAbbreviations.put("nasa", "NASA");
   }
 
   static {
@@ -89,10 +112,7 @@ public class AstroBotManager {
     googleMapsGeoApiContext = new GeoApiContext().setApiKey(googleMapsApiKey);
     
     LaunchLibraryConfig launchLibraryConfig = astroBotConfig.getLaunchLibraryConfig();
-    String launchLibraryApiRootUrl = launchLibraryConfig.getLaunchLibraryApiRootUrl();
-    String launchLibraryVersion = launchLibraryConfig.getLaunchLibraryVersion();
-    long launchesCacheTtl = launchLibraryConfig.getLaunchesCacheTtl();
-    launchLibraryClient = new LaunchLibraryClient(launchLibraryApiRootUrl, launchLibraryVersion, launchesCacheTtl);
+    launchLibraryClient = new LaunchLibraryClient(launchLibraryConfig);
   }
 
   public void handleRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
@@ -248,17 +268,36 @@ public class AstroBotManager {
     doIndexedUpcomingLaunchRequest(serviceInput, serviceOutput, 0);
   }
 
-  private void doNextLaunchByAgencyRequest(ServiceInput serviceInput,ServiceOutput serviceOutput) {
-    
+  private void doNextLaunchByAgencyRequest(ServiceInput serviceInput,ServiceOutput serviceOutput) throws DerpwizardException {
+    if(MapUtils.isEmpty(serviceInput.getMessageAsMap()) || !serviceInput.getMessageAsMap().containsKey("agencyName")){
+      LOG.error("Launch by agency method triggered, but no agencyName was found. Defaulting to agency-agnostic request.");
+      doNextLaunchRequest(serviceInput, serviceOutput);
+    }
+    String agencyName = serviceInput.getMessageAsMap().get("agencyName");
+    String canonicalAgencyAbbreviation = canonicalAgencyAbbreviations.get(agencyName);
+    int agencyId = launchLibraryClient.getAgencyIdByAbbreviation(canonicalAgencyAbbreviation);
+    doIndexedUpcomingLaunchRequestByAgencyId(serviceInput, serviceOutput, 0, agencyId);
   }
   
   private void doIndexedUpcomingLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput, int index) throws DerpwizardException {
-
-    LaunchesResponse launchesResponse = launchLibraryClient.getUpcomingLaunchesWithCache();
-    if(index < 0 || launchesResponse.getLaunches() == null || index > launchesResponse.getLaunches().length){
+    doIndexedUpcomingLaunchRequestByAgencyId(serviceInput, serviceOutput, index, 0);
+  }
+  
+  private void doIndexedUpcomingLaunchRequestByAgencyId(ServiceInput serviceInput, ServiceOutput serviceOutput, int index, int agencyId) throws DerpwizardException {
+    Launch[] launches = new Launch[0];
+    if(agencyId < 1){
+      LaunchesResponse launchesResponse = launchLibraryClient.getUpcomingLaunchesWithCache();
+      launches = launchesResponse.getLaunches();
+    }else{
+      Set<Launch> launchesResponse = launchLibraryClient.getUpcomingLaunchesByAgency(agencyId);
+      launches = launchesResponse.toArray(launches);
+    }
+    if(launches.length < 1){
+      throw new DerpwizardException("Houston, we have a problem.  I could not find any upcoming launches to tell you about.");
+    }else if(index < 0 || index > launches.length){
       throw new DerpwizardException("Looks like we've reached the end of the line - no more launches to talk about in that direction.");
     }
-    Launch launch = launchesResponse.getLaunches()[index];
+    Launch launch = launches[index];
     serviceOutput.getVisualOutput().setTitle("Next Launch:");
     StringBuilder outputStringBuilder = new StringBuilder("The next launch is " + launch.getName());
     outputStringBuilder.append(" on ");

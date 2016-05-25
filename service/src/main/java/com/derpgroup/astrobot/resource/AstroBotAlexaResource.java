@@ -150,6 +150,11 @@ public class AstroBotAlexaResource {
       ServiceInput serviceInput = new ServiceInput();
       serviceInput.setMetadata(inputMetadata);
       Map<String, String> messageAsMap = AlexaUtils.getMessageAsMap(request.getRequest());
+      if(messageAsMap.containsKey("agencyName")){
+        String agencyName = messageAsMap.get("agencyName");
+        agencyName = agencyName.replace(".", "").replace(" ", "").toLowerCase();
+        messageAsMap.put("agencyName", agencyName);
+      }
       serviceInput.setMessageAsMap(messageAsMap);
       
       SpeechletRequest speechletRequest = (SpeechletRequest)request.getRequest();

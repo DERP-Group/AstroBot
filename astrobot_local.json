@@ -7,7 +7,10 @@
     "launchLibraryConfig":{
       "launchLibraryApiRootUrl":"https://launchlibrary.net",
       "launchLibraryVersion":"1.2",
-      "launchesCacheTtl":21600000
+      "upcomingLaunchesToRetrieve":100,
+      "agenciesToRetrieve":500,
+      "launchesCacheTtl":21600000,
+      "agenciesCacheTtl":604800000
     }
   },
   "server": {
