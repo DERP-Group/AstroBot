@@ -7,6 +7,10 @@
     "launchLibraryConfig":{
       "launchLibraryApiRootUrl":"https://launchlibrary.net",
       "launchLibraryVersion":"1.2"
+    },
+    "geonamesConfig":{
+      "geonamesApiRootUrl":"http://api.geonames.org",
+      "username":"derpgroup"
     }
   },
   "server": {

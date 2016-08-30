@@ -11,6 +11,10 @@
       "agenciesToRetrieve":500,
       "launchesCacheTtl":21600000,
       "agenciesCacheTtl":604800000
+    },
+    "geonamesConfig":{
+      "geonamesApiRootUrl":"http://api.geonames.org",
+      "username":"derpgroup"
     }
   },
   "server": {

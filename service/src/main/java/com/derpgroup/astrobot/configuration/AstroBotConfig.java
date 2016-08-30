@@ -16,6 +16,10 @@ public class AstroBotConfig {
   @Valid
   @NotNull
   private GoogleMapsConfig googleMapsConfig;
+  
+  @Valid
+  @NotNull
+  private GeonamesConfig geonamesConfig;
 
   public OpenNotifyConfig getOpenNotifyConfig() {
     return openNotifyConfig;
@@ -39,5 +43,13 @@ public class AstroBotConfig {
 
   public void setLaunchLibraryConfig(LaunchLibraryConfig launchLibraryConfig) {
     this.launchLibraryConfig = launchLibraryConfig;
+  }
+
+  public GeonamesConfig getGeonamesConfig() {
+    return geonamesConfig;
+  }
+
+  public void setGeonamesConfig(GeonamesConfig geonamesConfig) {
+    this.geonamesConfig = geonamesConfig;
   }
 }

@@ -18,12 +18,20 @@
 
 package com.derpgroup.astrobot.manager;
 
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang.math.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -33,9 +41,12 @@ import org.slf4j.LoggerFactory;
 import com.derpgroup.astrobot.AstroBotMetadata;
 import com.derpgroup.astrobot.MixInModule;
 import com.derpgroup.astrobot.configuration.AstroBotConfig;
+import com.derpgroup.astrobot.configuration.GeonamesConfig;
 import com.derpgroup.astrobot.configuration.LaunchLibraryConfig;
 import com.derpgroup.astrobot.configuration.MainConfig;
 import com.derpgroup.astrobot.configuration.OpenNotifyConfig;
+import com.derpgroup.astrobot.util.geonames.GeonamesClient;
+import com.derpgroup.astrobot.util.geonames.OceansResponse;
 import com.derpgroup.astrobot.util.launchlibrary.Launch;
 import com.derpgroup.astrobot.util.launchlibrary.LaunchLibraryClient;
 import com.derpgroup.astrobot.util.launchlibrary.LaunchesResponse;
@@ -68,6 +79,7 @@ public class AstroBotManager {
   
   private static final HashSet<String> metaSubjects;
   private static final HashMap<String, String> canonicalAgencyAbbreviations;
+  private static final ArrayList<String> menuQueryQuips;
   
   static{
     metaSubjects = new HashSet<String>();
@@ -96,6 +108,14 @@ public class AstroBotManager {
     canonicalAgencyAbbreviations.put("nationalaeronauticsandspaceadministration", "NASA");
     canonicalAgencyAbbreviations.put("nasa", "NASA");
   }
+  
+  static{
+    menuQueryQuips = new ArrayList<String>();
+    menuQueryQuips.add("What can I do for you?");
+    menuQueryQuips.add("What can I help you with?");
+    menuQueryQuips.add("What would you like to know?");
+    menuQueryQuips.add("What do you want to explore?");
+  }
 
   static {
     ConversationHistoryUtils.getMapper().registerModule(new MixInModule());
@@ -104,6 +124,9 @@ public class AstroBotManager {
   private OpenNotifyClient openNotifyClient;
   private LaunchLibraryClient launchLibraryClient;
   private GeoApiContext googleMapsGeoApiContext;
+  private GeonamesClient geonamesClient;
+  private ExecutorService executor;
+  private long responseTimeout = 4500;
   
   public AstroBotManager(MainConfig config) {
     AstroBotConfig astroBotConfig = config.getAstroBotConfig();
@@ -117,6 +140,11 @@ public class AstroBotManager {
     
     LaunchLibraryConfig launchLibraryConfig = astroBotConfig.getLaunchLibraryConfig();
     launchLibraryClient = new LaunchLibraryClient(launchLibraryConfig);
+    
+    GeonamesConfig geonamesConfig = astroBotConfig.getGeonamesConfig();
+    geonamesClient = new GeonamesClient(geonamesConfig);
+    
+    executor = Executors.newSingleThreadExecutor();
   }
 
   public void handleRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
@@ -140,27 +168,21 @@ public class AstroBotManager {
     case "HELP":
       doHelpRequest(serviceInput, serviceOutput);
       break;
-
     case "START_OF_CONVERSATION":
       doHelloRequest(serviceInput, serviceOutput);
       break;
-
     case "END_OF_CONVERSATION":
       doGoodbyeRequest(serviceInput, serviceOutput);
       break;
-
     case "CANCEL":
       doCancelRequest(serviceInput, serviceOutput);
       break;
-
     case "STOP":
       doStopRequest(serviceInput, serviceOutput);
       break;
-
     case "REPEAT":
       doRepeatRequest(serviceInput, serviceOutput);
       break;
-
     case "YES":
       doYesRequest(serviceInput, serviceOutput);
       break;
@@ -179,7 +201,14 @@ public class AstroBotManager {
   }
 
   private void doPeopleInSpaceRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
-    AstronautsResponse astronautsResponse = openNotifyClient.getAstronautsWithCache();
+    
+    AstronautsResponse astronautsResponse;
+    try {
+      astronautsResponse = getAstronautsViaFuture(responseTimeout);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      buildTimeoutError(serviceOutput, "the people in space");
+      return;
+    }
     serviceOutput.getVisualOutput().setTitle("Number of People in Space");
     serviceOutput.getVisualOutput().setText("There are currently " + astronautsResponse.getNumber() + " people in space.");
     serviceOutput.getVoiceOutput().setSsmltext("There are currently " + astronautsResponse.getNumber() + " people in space. Would you like to hear their names and ships?");
@@ -187,7 +216,14 @@ public class AstroBotManager {
   }
 
   private void doWhoIsInSpaceRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
-    AstronautsResponse astronautsResponse = openNotifyClient.getAstronautsWithCache();
+    AstronautsResponse astronautsResponse;
+    try {
+      astronautsResponse = getAstronautsViaFuture(responseTimeout);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      buildTimeoutError(serviceOutput, "the people in space");
+      return;
+    }
+    
     serviceOutput.getVisualOutput().setTitle("People in Space");
 
     StringBuilder visualTextBuilder = new StringBuilder("The people currently in space are:\n");
@@ -219,51 +255,91 @@ public class AstroBotManager {
   }
 
   private void doInternationalSpaceStationRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
-    SpaceStationLocationResponse astronautsResponse = openNotifyClient.getSpaceStationLocation();
-
+    long timeRemaining = responseTimeout;
+    long prefetch = 0;
+    long postfetch = 0;
+    SpaceStationLocationResponse spaceStationResponse;
+    try {
+      prefetch = System.currentTimeMillis();
+      spaceStationResponse = getSpaceStationLocationViaFuture(timeRemaining);
+      postfetch = System.currentTimeMillis();
+      timeRemaining -= (postfetch - prefetch);
+      LOG.info("Time remaining: " + timeRemaining);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      buildTimeoutError(serviceOutput, "the ISS's location");
+      return;
+    }
+    
+    double latitude = spaceStationResponse.getSpaceStationLocation().getLatitude();
+    double longitude = spaceStationResponse.getSpaceStationLocation().getLongitude();
     //This stuff should probably be pulled out into its own place
-    LatLng coordinates = new LatLng(astronautsResponse.getSpaceStationLocation().getLatitude(),
-        astronautsResponse.getSpaceStationLocation().getLongitude());
+    LatLng coordinates = new LatLng(latitude,
+        longitude);
     GeocodingApiRequest req = GeocodingApi.reverseGeocode(googleMapsGeoApiContext, coordinates);
     String countryName = null;
     String administrativeAreaName = null;
+    GeocodingResult[] results;
     try {
-      GeocodingResult[] results = req.await();
-      if(results == null || results.length < 1){
-        //It's probably over the ocean - do special handling here
-        LOG.error("No results");
-      }else{
-        GeocodingResult result = results[0];
-        AddressComponent[] addressComponents = result.addressComponents;
-        for(AddressComponent addressComponent : addressComponents){
-          AddressComponentType[] addressComponentTypes = addressComponent.types;
-          for(AddressComponentType addressComponentType : addressComponentTypes){
-            if(addressComponentType.name().equalsIgnoreCase("country")){
-              countryName = addressComponent.longName;
-            }
-            if(addressComponentType.name().equalsIgnoreCase("administrative_area_level_1")){
-              administrativeAreaName = addressComponent.longName;
-            }
+      prefetch = System.currentTimeMillis();
+      results = getReverseGeocodeViaFuture(req, timeRemaining);
+      postfetch = System.currentTimeMillis();
+      timeRemaining -= (postfetch - prefetch);
+      LOG.info("Time remaining: " + timeRemaining);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      buildTimeoutError(serviceOutput, "the ISS's location");
+      return;
+    }
+    if(results != null && results.length >= 1){
+      GeocodingResult result = results[0];
+      AddressComponent[] addressComponents = result.addressComponents;
+      for(AddressComponent addressComponent : addressComponents){
+        AddressComponentType[] addressComponentTypes = addressComponent.types;
+        for(AddressComponentType addressComponentType : addressComponentTypes){
+          if(addressComponentType.name().equalsIgnoreCase("country")){
+            countryName = addressComponent.longName;
+          }
+          if(addressComponentType.name().equalsIgnoreCase("administrative_area_level_1")){
+            administrativeAreaName = addressComponent.longName;
           }
         }
       }
-    } catch (Exception e) {
-      throw new DerpwizardException("Could not lookup location of ISS from known coordinates.");
     }
 
-    String locationName;
+    StringBuilder locationName = new StringBuilder();
     if(countryName == null){
-      locationName = "international waters";
+      OceansResponse oceansResponse;
+      try {
+        prefetch = System.currentTimeMillis();
+        oceansResponse = getGeonameViaFuture(latitude, longitude, timeRemaining);
+        postfetch = System.currentTimeMillis();
+        timeRemaining -= (postfetch - prefetch);
+        LOG.info("Time remaining: " + timeRemaining);
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        buildTimeoutError(serviceOutput, "the ISS's location");
+        return;
+      }
+      if(oceansResponse == null || oceansResponse.getOcean() == null || StringUtils.isEmpty(oceansResponse.getOcean().getName())){
+        locationName.append("international waters");
+        LOG.error("Could not resolve lat: " + latitude + ", lng: " + longitude +" over land or sea.");
+      }else{
+        locationName.append("the " + oceansResponse.getOcean().getName());
+      }
     }else{
-      locationName = administrativeAreaName + ", " + countryName;
+      if(administrativeAreaName != null){
+        locationName.append(administrativeAreaName);
+        locationName.append(", ");
+      }else{
+        LOG.info("Could not resolve administrativeName for area in '" + countryName + "'.");        
+      }
+      locationName.append(countryName);
     }
     LOG.info("CountryName: " + countryName);
     LOG.info("Administrative Area: " + administrativeAreaName);
     serviceOutput.getVisualOutput().setTitle("Where is the ISS?");
     serviceOutput.getVisualOutput().setText("The International Space Station is currently over "
         + locationName + ".\n\n Coordinates: \n "
-        + astronautsResponse.getSpaceStationLocation().getLatitude() + ","
-        + astronautsResponse.getSpaceStationLocation().getLongitude());
+        + spaceStationResponse.getSpaceStationLocation().getLatitude() + ","
+        + spaceStationResponse.getSpaceStationLocation().getLongitude());
     serviceOutput.getVoiceOutput().setSsmltext("The ISS is currently over "
         + locationName + ".");
   }
@@ -287,10 +363,12 @@ public class AstroBotManager {
   
   private void doIndexedUpcomingLaunchRequestByAgencyId(ServiceInput serviceInput, ServiceOutput serviceOutput, int index, String agencyName) throws DerpwizardException {
     Launch[] launches = new Launch[0];
+    String agencyNameOutputModifier = "";
     if(agencyName == null){
       LaunchesResponse launchesResponse = launchLibraryClient.getUpcomingLaunchesWithCache();
       launches = launchesResponse.getLaunches();
     }else{
+      agencyNameOutputModifier = " for " + agencyName;
       String canonicalAgencyAbbreviation = canonicalAgencyAbbreviations.get(agencyName);
       int agencyId = launchLibraryClient.getAgencyIdByAbbreviation(canonicalAgencyAbbreviation);
       Set<Launch> launchesResponse = launchLibraryClient.getUpcomingLaunchesByAgency(agencyId);
@@ -305,15 +383,30 @@ public class AstroBotManager {
     String launchDateString = launch.getIsostart(); //Would prefer to use timestamps here, but they aren't always provided
     DateTime launchDateTime = DateTime.parse(launchDateString, DateTimeFormat.forPattern("yyyyMMdd'T'HHmmss'Z'").withZoneUTC());
     serviceOutput.getVisualOutput().setTitle("Next Launch:");
-    StringBuilder outputStringBuilder = new StringBuilder("The next launch is " + launch.getName());
+    
+    String[] launchStringComponents = launch.getName().split("\\|");
+    
+    
+    StringBuilder outputStringBuilder = new StringBuilder();
+    if(index == 0){
+      outputStringBuilder.append("The next launch" + agencyNameOutputModifier + " will be a ");
+    }else{
+      outputStringBuilder.append("The following launch" + agencyNameOutputModifier + " will be a ");
+    }
+    outputStringBuilder.append(launchStringComponents[0]);
+    outputStringBuilder.append(". ");
+    if(launchStringComponents.length > 0){
+      outputStringBuilder.append("It will be launching ");
+      outputStringBuilder.append(launchStringComponents[1]);
+    }
     if(launch.isDateLocked()){
-      outputStringBuilder.append(" on ");
+      outputStringBuilder.append(", on ");
     }else{
       outputStringBuilder.append(", targetted for ");
     }
     outputStringBuilder.append(launchDateTime.toString(DateTimeFormat.forPattern("MMMM dd',' yyyy")));
     if(launch.isTimeLocked()){
-      outputStringBuilder.append(" at" + launchDateTime.toString(DateTimeFormat.forPattern(" HH:MM")) + " Universal Time");
+      outputStringBuilder.append(" at" + launchDateTime.toString(DateTimeFormat.forPattern(" hh:MM a")) + " Universal Time");
     }
     outputStringBuilder.append(". To hear about another launch, say \"next\".");
     String outputString = outputStringBuilder.toString();
@@ -326,16 +419,13 @@ public class AstroBotManager {
 
   protected void doHelpRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
     serviceOutput.getVisualOutput().setTitle("Help");
-    serviceOutput.getVisualOutput().setText("Topics:\n number of people in space\n location of the ISS\n upcoming rocket launches.");
-    serviceOutput.getVoiceOutput().setSsmltext("Topics are <break /> number of people in space, location of the ISS, and upcoming rocket launches");
+    serviceOutput.getVisualOutput().setText("Topics:\n How many people are in space?\n Where is the ISS\n When is the next launch?");
+    serviceOutput.getVoiceOutput().setSsmltext("You can ask one of the following questions<break /> how many people are in space?<break /> where is the international space station?<break /> when is the next launch?<break /> You can also ask for launches for a specific space agency like NASA or SpaceX.");
     serviceOutput.setConversationEnded(true);
   }
 
-  protected void doHelloRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
-    serviceOutput.getVisualOutput().setTitle("Blast off with AstroBot!");
-    serviceOutput.getVisualOutput().setText("Greetings, Earthling. What can I do for you?");
-    serviceOutput.getVoiceOutput().setSsmltext("Greetings Earthling. What can I do for you?");
-    serviceOutput.setConversationEnded(false);
+  protected void doHelloRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    doMenuQuery(serviceInput, serviceOutput);
   }
 
   protected void doGoodbyeRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
@@ -357,10 +447,10 @@ public class AstroBotManager {
     serviceOutput.setConversationEnded(true);
   }
 
-  protected void doYesRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) throws DerpwizardException {
-    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(voiceInput.getMetadata().getConversationHistory(), metaSubjects);
+  protected void doYesRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), metaSubjects);
     if(entry.getMessageSubject().equalsIgnoreCase("PEOPLE_IN_SPACE")){
-      doWhoIsInSpaceRequest(voiceInput, serviceOutput);
+      doWhoIsInSpaceRequest(serviceInput, serviceOutput);
     }else{
       serviceOutput.getVisualOutput().setTitle("Unexpected input.");
       serviceOutput.getVisualOutput().setText("I received input that seems like an affirmative answer, but I don't recall asking a question.");
@@ -369,8 +459,13 @@ public class AstroBotManager {
     }
   }
 
-  protected void doNoRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) {
-    doCancelRequest(serviceInput, serviceOutput);
+  protected void doNoRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), metaSubjects);
+    if(entry.getMessageSubject().equalsIgnoreCase("PEOPLE_IN_SPACE")){
+      doMenuQuery(serviceInput, serviceOutput);
+    }else{
+      doStopRequest(serviceInput, serviceOutput);
+    }
   }
 
   private void doNextRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
@@ -413,5 +508,83 @@ public class AstroBotManager {
       serviceOutput.getVoiceOutput().setSsmltext("I received input that seems like you want the previous entry, but I don't know for what.");
       serviceOutput.setConversationEnded(true);
     }
+  }
+  
+  private void doMenuQuery(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+
+    StringBuilder visualTextBuilder = new StringBuilder();
+    StringBuilder audioTextBuilder = new StringBuilder();
+    StringBuilder delayedAudioTextBuilder = new StringBuilder();
+
+    if(serviceInput.getSubject().equalsIgnoreCase("START_OF_CONVERSATION")){
+      visualTextBuilder.append("Greetings, Earthling. ");
+      audioTextBuilder.append("Greetings Earthling. ");
+    }else if(serviceInput.getSubject().equalsIgnoreCase("NO")){
+      audioTextBuilder.append("Understood. Aside from that, ");
+    }
+    
+    String quip = menuQueryQuips.get(RandomUtils.nextInt(menuQueryQuips.size()));
+    visualTextBuilder.append(quip);
+    audioTextBuilder.append(quip);
+    delayedAudioTextBuilder.append("You can say <break />help<break /> if you need some suggestions for commands.");
+
+    if(serviceInput.getSubject().equalsIgnoreCase("NO")){
+      delayedAudioTextBuilder.append(" Or you can say <break />exit<break /> to take the escape pod out of Astro Bot.");
+    }
+    
+    serviceOutput.getVisualOutput().setTitle("Blast off with AstroBot!");
+    serviceOutput.getVisualOutput().setText(visualTextBuilder.toString());
+    serviceOutput.getVoiceOutput().setSsmltext(audioTextBuilder.toString());
+    serviceOutput.getDelayedVoiceOutput().setSsmltext(delayedAudioTextBuilder.toString());
+    serviceOutput.setConversationEnded(false);
+  }
+
+  private void buildTimeoutError(ServiceOutput serviceOutput, String timeoutSubject) {
+    LOG.error("Timed out looking for: " + timeoutSubject);
+
+    String message = "Houston, we have a problem. I couldn't find " + timeoutSubject + " because one of my sources was too slow to respond.";
+    serviceOutput.getVisualOutput().setTitle("Timeout in downstream service");
+    serviceOutput.getVisualOutput().setText(message);
+    serviceOutput.getVoiceOutput().setSsmltext(message);
+  }
+
+  private AstronautsResponse getAstronautsViaFuture(long responseTimeout) throws InterruptedException, ExecutionException, TimeoutException {
+    Future<AstronautsResponse> response = executor.submit(new Callable<AstronautsResponse>() {
+        @Override
+        public AstronautsResponse call() throws Exception {
+          return openNotifyClient.getAstronautsWithCache();
+        }
+    });
+    return response.get(responseTimeout, TimeUnit.MILLISECONDS);
+  }
+
+  private SpaceStationLocationResponse getSpaceStationLocationViaFuture(long responseTimeout) throws InterruptedException, ExecutionException, TimeoutException {
+    Future<SpaceStationLocationResponse> response = executor.submit(new Callable<SpaceStationLocationResponse>() {
+        @Override
+        public SpaceStationLocationResponse call() throws Exception {
+          return openNotifyClient.getSpaceStationLocation();
+        }
+    });
+    return response.get(responseTimeout, TimeUnit.MILLISECONDS);
+  }
+
+  private GeocodingResult[] getReverseGeocodeViaFuture(GeocodingApiRequest req, long responseTimeout) throws InterruptedException, ExecutionException, TimeoutException {
+    Future<GeocodingResult[]> response = executor.submit(new Callable<GeocodingResult[]>() {
+        @Override
+        public GeocodingResult[] call() throws Exception {
+          return req.await();
+        }
+    });
+    return response.get(responseTimeout, TimeUnit.MILLISECONDS);
+  }
+
+  private OceansResponse getGeonameViaFuture(double latitude, double longitude, long responseTimeout) throws InterruptedException, ExecutionException, TimeoutException {
+    Future<OceansResponse> response = executor.submit(new Callable<OceansResponse>() {
+        @Override
+        public OceansResponse call() throws Exception {
+          return geonamesClient.getOceanNameByCoordinates(latitude, longitude);
+        }
+    });
+    return response.get(responseTimeout, TimeUnit.MILLISECONDS);
   }
 }
