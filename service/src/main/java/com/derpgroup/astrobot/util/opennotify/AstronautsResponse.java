@@ -1,5 +1,8 @@
 package com.derpgroup.astrobot.util.opennotify;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+@SuppressFBWarnings
 public class AstronautsResponse extends OpenNotifyResponse {
 
   private int number;

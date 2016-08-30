@@ -6,7 +6,11 @@
     },
     "launchLibraryConfig":{
       "launchLibraryApiRootUrl":"https://launchlibrary.net",
-      "launchLibraryVersion":"1.2"
+      "launchLibraryVersion":"1.2",
+      "upcomingLaunchesToRetrieve":100,
+      "agenciesToRetrieve":500,
+      "launchesCacheTtl":21600000,
+      "agenciesCacheTtl":604800000
     },
     "geonamesConfig":{
       "geonamesApiRootUrl":"http://api.geonames.org",

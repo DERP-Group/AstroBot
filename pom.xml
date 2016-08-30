@@ -7,7 +7,6 @@
   <name>AstroBot</name>
 
   <modules>
-    <module>voice-interface</module>
     <module>service</module>
   </modules>
 
@@ -108,6 +107,12 @@
       <classifier>jdk15</classifier>
       <scope>test</scope>
     </dependency>
+    
+    <dependency>
+	    <groupId>com.google.code.findbugs</groupId>
+	    <artifactId>findbugs</artifactId>
+	    <version>3.0.1</version>
+	</dependency>
   </dependencies>
 
   <build>

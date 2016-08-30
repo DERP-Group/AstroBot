@@ -69,7 +69,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * @author Eric
  * @since 0.0.1
  */
-@Path("/alexa")
+@Path("/astrobot/alexa")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AstroBotAlexaResource {

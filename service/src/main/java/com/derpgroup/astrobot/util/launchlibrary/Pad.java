@@ -1,5 +1,8 @@
 package com.derpgroup.astrobot.util.launchlibrary;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+@SuppressFBWarnings
 public class Pad {
 
   private int id;

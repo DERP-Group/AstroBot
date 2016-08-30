@@ -2,6 +2,9 @@ package com.derpgroup.astrobot.util.launchlibrary;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+@SuppressFBWarnings
 public class Agency {
 
   private int id;

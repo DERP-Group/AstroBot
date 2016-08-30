@@ -3,6 +3,9 @@ package com.derpgroup.astrobot.util.launchlibrary;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+@SuppressFBWarnings
 @JsonIgnoreProperties(value = { "inhold", "infoURL","vidURL" })
 public class Launch {
 
