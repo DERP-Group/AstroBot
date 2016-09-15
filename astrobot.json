@@ -17,6 +17,7 @@
       "username":"derpgroup"
     }
   },
+  "ignoreUnknownJsonProperties":"true",
   "server": {
     "applicationConnectors": [
       {

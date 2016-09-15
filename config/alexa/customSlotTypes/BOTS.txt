@@ -1,0 +1,4 @@
+complibot
+insultibot
+dicebot
+astrobot

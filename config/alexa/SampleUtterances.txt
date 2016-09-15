@@ -1,12 +1,35 @@
 INTERNATIONAL_SPACE_STATION Where is the International Space Station
 INTERNATIONAL_SPACE_STATION Where is the International Space Station currently
 INTERNATIONAL_SPACE_STATION Where is the International Space Station right now
+INTERNATIONAL_SPACE_STATION Where is the I.S.S.
+INTERNATIONAL_SPACE_STATION Where is the I.S.S. currently
+INTERNATIONAL_SPACE_STATION Where is the I.S.S. right now
 PEOPLE_IN_SPACE How many people are in space right now
 PEOPLE_IN_SPACE How many people are in space
+PEOPLE_IN_SPACE How many astronauts are in space right now
+PEOPLE_IN_SPACE How many astronauts are in space
+PEOPLE_IN_SPACE How many cosmonauts are in space right now
+PEOPLE_IN_SPACE How many cosmonauts are in space
 WHO_IS_IN_SPACE Who are the people currently in space
 WHO_IS_IN_SPACE What are the names of the people currently in space
-WHO_IS_IN_SPACE Who are the people in space right now
-WHO_IS_IN_SPACE What are the names of the people in space right now
+WHO_IS_IN_SPACE Who are the astronauts in space right now
+WHO_IS_IN_SPACE What are the names of the astronauts in space right now
+WHO_IS_IN_SPACE Who are the astronauts currently in space
+WHO_IS_IN_SPACE What are the names of the cosmonauts currently in space
+WHO_IS_IN_SPACE Who are the cosmonauts in space right now
+WHO_IS_IN_SPACE What are the names of the cosmonauts in space right now
 NEXT_LAUNCH When is the next launch
 NEXT_LAUNCH What is the next launch
 NEXT_LAUNCH_FOR_AGENCY What is the next {agencyName} launch
+NEXT_LAUNCH_FOR_AGENCY What is the next launch for {agencyName}
+NEXT_LAUNCH_FOR_AGENCY What is the next space launch for {agencyName}
+NEXT_LAUNCH_FOR_AGENCY What is the next {agencyName} rocket launch
+NEXT_LAUNCH_FOR_AGENCY What is the next rocket launch for {agencyName}
+WHO_BUILT_YOU who built you
+WHO_BUILT_YOU who wrote you
+WHO_BUILT_YOU who created you
+WHO_BUILT_YOU who are your parents
+FRIENDS who are your friends
+FRIENDS who is your friend
+WHO_IS who is {botName}
+WHO_IS who {botName} is

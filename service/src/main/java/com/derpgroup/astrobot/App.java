@@ -27,15 +27,10 @@ import java.io.IOException;
 import com.derpgroup.astrobot.configuration.MainConfig;
 import com.derpgroup.astrobot.health.BasicHealthCheck;
 import com.derpgroup.astrobot.resource.AstroBotAlexaResource;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-/**
- * Main method for spinning up the HTTP server.
- *
- * @author Rusty Gerard
- * @since 0.0.1
- */
 public class App extends Application<MainConfig> {
 
   public static void main(String[] args) throws Exception {
@@ -47,9 +42,12 @@ public class App extends Application<MainConfig> {
 
   @Override
   public void run(MainConfig config, Environment environment) throws IOException {
+    ObjectMapper mapper = environment.getObjectMapper();
     if (config.isPrettyPrint()) {
-      ObjectMapper mapper = environment.getObjectMapper();
       mapper.enable(SerializationFeature.INDENT_OUTPUT);
+    }
+    if (config.isIgnoreUnknownJsonProperties()) {
+      mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 
     // Health checks

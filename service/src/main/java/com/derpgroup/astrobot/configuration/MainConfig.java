@@ -39,6 +39,8 @@ public class MainConfig extends Configuration {
   @NotNull
   private AstroBotConfig astroBotConfig;
 
+  private boolean ignoreUnknownJsonProperties;
+
   @JsonProperty
   public boolean isPrettyPrint() {
     return prettyPrint;
@@ -65,5 +67,14 @@ public class MainConfig extends Configuration {
 
   public void setAstroBotConfig(AstroBotConfig astroBotConfig) {
     this.astroBotConfig = astroBotConfig;
+  }
+
+  public boolean isIgnoreUnknownJsonProperties() {
+    return ignoreUnknownJsonProperties;
+  }
+
+  public void setIgnoreUnknownJsonProperties(
+      boolean ignoreUnknownJsonProperties) {
+    this.ignoreUnknownJsonProperties = ignoreUnknownJsonProperties;
   }
 }

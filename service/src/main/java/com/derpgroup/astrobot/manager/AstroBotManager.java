@@ -80,9 +80,15 @@ public class AstroBotManager {
   private static final HashSet<String> metaSubjects;
   private static final HashMap<String, String> canonicalAgencyAbbreviations;
   private static final ArrayList<String> menuQueryQuips;
+
+  private static final String QUERY_FOLLOW_UP = "What else would you like to know?";
+  private static final String QUERY_FOLLOW_UP_INTERMEDIATE = "Wanna know anything else?";
+  private static final String META_FOLLOW_UP = " What else can I help you with?";
+  private static final String META_FOLLOW_UP_INTERMEDIATE = " Anything else?";
   
   static{
     metaSubjects = new HashSet<String>();
+    metaSubjects.add("START_OF_CONVERSATION");
     metaSubjects.add("REPEAT");
     metaSubjects.add("YES");
     metaSubjects.add("NO");
@@ -92,6 +98,8 @@ public class AstroBotManager {
   
   static{
     canonicalAgencyAbbreviations = new HashMap<String,String>();
+    canonicalAgencyAbbreviations.put("nasa", "NASA");
+    canonicalAgencyAbbreviations.put("nationalaeronauticsandspaceadministration", "NASA");
     canonicalAgencyAbbreviations.put("spacex", "SpX");
     canonicalAgencyAbbreviations.put("spaceexplorationtechnologies","SpX");
     canonicalAgencyAbbreviations.put("orbital", "OA");
@@ -101,12 +109,22 @@ public class AstroBotManager {
     canonicalAgencyAbbreviations.put("ula", "ULA");
     canonicalAgencyAbbreviations.put("unitedlaunchalliance", "ULA");
     canonicalAgencyAbbreviations.put("arianespace", "ASA");
+    canonicalAgencyAbbreviations.put("asa", "ASA");
     canonicalAgencyAbbreviations.put("jaxa", "JAXA");
     canonicalAgencyAbbreviations.put("japanaerospaceexplorationagency", "JAXA");
     canonicalAgencyAbbreviations.put("russianfederalspaceagency", "FKA");
     canonicalAgencyAbbreviations.put("roscosmos", "FKA");
-    canonicalAgencyAbbreviations.put("nationalaeronauticsandspaceadministration", "NASA");
-    canonicalAgencyAbbreviations.put("nasa", "NASA");
+    canonicalAgencyAbbreviations.put("chinanationalspaceadministration", "CNSA");
+    canonicalAgencyAbbreviations.put("cnsa", "CNSA");
+    canonicalAgencyAbbreviations.put("unitedstatesairforce", "USAF");
+    canonicalAgencyAbbreviations.put("usaf", "USAF");
+    canonicalAgencyAbbreviations.put("usairforce", "USAF");
+    canonicalAgencyAbbreviations.put("airforce", "USAF");
+    canonicalAgencyAbbreviations.put("russianaerospacedefenceforces", "VKO");
+    canonicalAgencyAbbreviations.put("vko", "VKO");
+    canonicalAgencyAbbreviations.put("indianspaceresearchorganization", "ISRO");
+    canonicalAgencyAbbreviations.put("isro", "ISRO");
+    canonicalAgencyAbbreviations.put("rocketlab", "Rocket Lab");
   }
   
   static{
@@ -127,6 +145,8 @@ public class AstroBotManager {
   private GeonamesClient geonamesClient;
   private ExecutorService executor;
   private long responseTimeout = 4500;
+  
+  private boolean handholdMode = true;
   
   public AstroBotManager(MainConfig config) {
     AstroBotConfig astroBotConfig = config.getAstroBotConfig();
@@ -174,6 +194,15 @@ public class AstroBotManager {
     case "END_OF_CONVERSATION":
       doGoodbyeRequest(serviceInput, serviceOutput);
       break;
+    case "WHO_BUILT_YOU":
+      doWhoBuiltYouRequest(serviceInput, serviceOutput);
+      break;
+    case "FRIENDS":
+      doFriendsRequest(serviceInput, serviceOutput);
+      break;
+    case "WHO_IS":
+      doWhoIsRequest(serviceInput, serviceOutput);
+      break;
     case "CANCEL":
       doCancelRequest(serviceInput, serviceOutput);
       break;
@@ -198,6 +227,94 @@ public class AstroBotManager {
     default:
       throw new DerpwizardException("Unrecognized request subject '" + serviceInput.getSubject() + "'.");
     }
+  }
+
+  
+
+  private void doWhoIsRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) {
+    String botInQuestion = serviceInput.getMessageAsMap().get("botName");
+    if(StringUtils.isEmpty(botInQuestion)){
+      String response = "I don't have any info for this situation.";
+      serviceOutput.getVoiceOutput().setPlaintext(response);
+      serviceOutput.getVoiceOutput().setSsmltext(response);
+      serviceOutput.getVisualOutput().setTitle(response);
+      serviceOutput.getVisualOutput().setText(response);
+      return;
+    }
+
+
+    StringBuilder textOutput = new StringBuilder();
+    StringBuilder voiceOutput = new StringBuilder();
+    switch(botInQuestion.toLowerCase()){
+    case "complibot":
+      textOutput.append("CompliBot's favorite astronaut is literally \"all of them\". Never a mean word out of that one.");
+      voiceOutput.append("<phoneme alphabet=\"ipa\" ph=\"kɒmplIbɒts\"> CompliBot's</phoneme> favorite astronaut is literally all of them. Never a mean word out of that one.");
+      break;
+    case "insultibot":
+      textOutput.append("They say 'In space, nobody can hear you scream'. InsultiBot does a lot of angry screaming. Maybe we'll see if NASA has any openings.");
+      voiceOutput.append("They say 'In space, nobody can hear you scream' <break time=\"500ms\"/> InsultaBot does quite a lot of angry screaming. Maybe we'll see if NASA has any openings.");
+      break;
+    case "dicebot":
+      textOutput.append("Every launch attempt is something of a gamble, and DiceBot is always there placing side bets.");
+      voiceOutput.append("Every launch attempt is something of a gamble, and DiceBot is always there placing side bets.");
+      break;
+    case "astrobot":
+      textOutput.append("That's me. I mainly just hold down the fort here at DERP Group mission control.");
+      voiceOutput.append("That's me. I mainly just hold down the fort here at DERP Group mission control.");
+      break;
+      default:
+        textOutput.append("I don't know who in this world (or any other) you are referring to.");
+        voiceOutput.append("I don't know who in this world (or any other) you are referring to.");
+        break;   
+    }
+
+    if(handholdMode){
+      int conversationLength = serviceOutput.getMetadata().getConversationHistory().size();
+      voiceOutput.append(getGradualBackoffDelayedVoiceSsml(conversationLength, false));
+    }
+    
+    String textMessage = textOutput.substring(0, textOutput.length() - 1);
+    String voiceMessage = voiceOutput.toString();
+    serviceOutput.getVisualOutput().setTitle("Who is...");
+    serviceOutput.getVisualOutput().setText(textMessage);
+    serviceOutput.getVoiceOutput().setSsmltext(voiceMessage);
+  }
+
+  private void doFriendsRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) {
+
+    StringBuilder textOutput = new StringBuilder("If I was putting together a spaceship crew, CompliBot, InsultiBot, and DiceBot would definitely be there by my side.");
+    StringBuilder voiceOutput = new StringBuilder("If I was putting together a spaceship crew, <phoneme alphabet=\"ipa\" ph=\"kɒmplIbɒt\">CompliBot</phoneme>, <phoneme alphabet=\"ipa\" ph=\"insoʊltəbɒt\">InsultaBot</phoneme>, and DiceBot would definitely be there by my side.");
+    textOutput.append("\n\n");
+    textOutput.append("CompliBot: www.derpgroup.com/bots.html#0");
+    textOutput.append("\n\n");
+    textOutput.append("InsultiBot: www.derpgroup.com/bots.html#1");
+    textOutput.append("\n\n");
+    textOutput.append("DiceBot: www.derpgroup.com/bots.html#2");
+
+    if(handholdMode){
+      int conversationLength = serviceOutput.getMetadata().getConversationHistory().size();
+      voiceOutput.append(getGradualBackoffDelayedVoiceSsml(conversationLength, false));
+    }
+    
+    serviceOutput.getVisualOutput().setTitle("I was built by DERP Group! ");
+    serviceOutput.getVisualOutput().setText(textOutput.toString());
+    serviceOutput.getVoiceOutput().setSsmltext(voiceOutput.toString());
+  }
+
+  private void doWhoBuiltYouRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) {
+
+    StringBuilder textOutput = new StringBuilder("David and Eric of DERPGroup assembled me, but really aren't we all just made of stardust?");
+    StringBuilder voiceOutput = new StringBuilder("David and Eric of DERPGroup assembled me, but really aren't we all just made of stardust?");
+    textOutput.append("\n\n www.derpgroup.com");
+
+    if(handholdMode){
+      int conversationLength = serviceOutput.getMetadata().getConversationHistory().size();
+      voiceOutput.append(getGradualBackoffDelayedVoiceSsml(conversationLength, false));
+    }
+    
+    serviceOutput.getVisualOutput().setTitle("I was built by DERP Group! ");
+    serviceOutput.getVisualOutput().setText(textOutput.toString());
+    serviceOutput.getVoiceOutput().setSsmltext(voiceOutput.toString());
   }
 
   private void doPeopleInSpaceRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
@@ -421,7 +538,7 @@ public class AstroBotManager {
     serviceOutput.getVisualOutput().setTitle("Help");
     serviceOutput.getVisualOutput().setText("Topics:\n How many people are in space?\n Where is the ISS\n When is the next launch?");
     serviceOutput.getVoiceOutput().setSsmltext("You can ask one of the following questions<break /> how many people are in space?<break /> where is the international space station?<break /> when is the next launch?<break /> You can also ask for launches for a specific space agency like NASA or SpaceX.");
-    serviceOutput.setConversationEnded(true);
+    serviceOutput.setConversationEnded(false);
   }
 
   protected void doHelloRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
@@ -542,7 +659,7 @@ public class AstroBotManager {
   private void buildTimeoutError(ServiceOutput serviceOutput, String timeoutSubject) {
     LOG.error("Timed out looking for: " + timeoutSubject);
 
-    String message = "Houston, we have a problem. I couldn't find " + timeoutSubject + " because one of my sources was too slow to respond.";
+    String message = "Houston, we have a problem. I couldn't find " + timeoutSubject + " because one of my sources was too slow to respond. Please try that again.";
     serviceOutput.getVisualOutput().setTitle("Timeout in downstream service");
     serviceOutput.getVisualOutput().setText(message);
     serviceOutput.getVoiceOutput().setSsmltext(message);
@@ -586,5 +703,26 @@ public class AstroBotManager {
         }
     });
     return response.get(responseTimeout, TimeUnit.MILLISECONDS);
+  }
+  
+  //For now, no reprompts on queries, and only reprompts on others (HELP has its own text)
+  protected String getGradualBackoffSsmlSuffix(int conversationLength, boolean isRoll){
+    String ssmlSuffix = "";
+    if(conversationLength <= 2){
+        ssmlSuffix = "<break time=\"1000ms\" />" + (isRoll ? QUERY_FOLLOW_UP : "");
+    }else if(conversationLength <= 4){
+      ssmlSuffix = "<break time=\"1000ms\" />" + (isRoll ? QUERY_FOLLOW_UP_INTERMEDIATE : "");
+    }
+    return ssmlSuffix;
+  }
+  
+  protected String getGradualBackoffDelayedVoiceSsml(int conversationLength, boolean isQuery){
+    String delayedVoiceSsml = "";
+    if(conversationLength <= 2){
+        delayedVoiceSsml = isQuery ? "" : META_FOLLOW_UP;
+    }else if(conversationLength <= 4){
+      delayedVoiceSsml = isQuery ? "" : META_FOLLOW_UP_INTERMEDIATE;
+    }
+    return delayedVoiceSsml;
   }
 }

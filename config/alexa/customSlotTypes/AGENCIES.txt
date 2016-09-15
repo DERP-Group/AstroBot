@@ -9,8 +9,20 @@ orbital sciences corporation
 alliant techsystems
 u. l. a.
 united launch alliance
-ariane space
 j. a. x. a.
 japanese aerospace exploration agency
 russian federal space agency
 roscosmos
+ariane space
+a. s. a.
+china national space administration
+c. n. s. a.
+united states air force
+u. s. air force
+air force
+u. s. a. f.
+russian aerospace defence forces
+v. k. o.
+indian space research organization
+i. s. r. o.
+rocket lab
