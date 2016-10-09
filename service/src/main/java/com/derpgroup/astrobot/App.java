@@ -23,6 +23,9 @@ import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
 import java.io.IOException;
+import java.util.logging.Logger;
+
+import org.glassfish.jersey.filter.LoggingFilter;
 
 import com.derpgroup.astrobot.configuration.MainConfig;
 import com.derpgroup.astrobot.health.BasicHealthCheck;

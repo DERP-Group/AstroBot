@@ -77,7 +77,8 @@ import com.google.maps.model.LatLng;
 public class AstroBotManager {
   private static final Logger LOG = LoggerFactory.getLogger(AstroBotManager.class);
   
-  private static final HashSet<String> metaSubjects;
+  private static final HashSet<String> META_SUBJECTS;
+  private static final HashSet<String> NON_REPEATABLE_SUBJECTS;
   private static final HashMap<String, String> canonicalAgencyAbbreviations;
   private static final ArrayList<String> menuQueryQuips;
 
@@ -87,13 +88,19 @@ public class AstroBotManager {
   private static final String META_FOLLOW_UP_INTERMEDIATE = " Anything else?";
   
   static{
-    metaSubjects = new HashSet<String>();
-    metaSubjects.add("START_OF_CONVERSATION");
-    metaSubjects.add("REPEAT");
-    metaSubjects.add("YES");
-    metaSubjects.add("NO");
-    metaSubjects.add("NEXT");
-    metaSubjects.add("PREVIOUS");
+    META_SUBJECTS = new HashSet<String>();
+    META_SUBJECTS.add("START_OF_CONVERSATION");
+    META_SUBJECTS.add("REPEAT");
+    META_SUBJECTS.add("YES");
+    META_SUBJECTS.add("NO");
+    META_SUBJECTS.add("NEXT");
+    META_SUBJECTS.add("PREVIOUS");
+  }
+  
+  static{
+    NON_REPEATABLE_SUBJECTS = new HashSet<String>();
+    NON_REPEATABLE_SUBJECTS.add("START_OF_CONVERSATION");
+    NON_REPEATABLE_SUBJECTS.add("REPEAT");
   }
   
   static{
@@ -168,8 +175,13 @@ public class AstroBotManager {
   }
 
   public void handleRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
-    LOG.debug("Doing request of type '" + serviceInput.getSubject() + "'");
-    switch(serviceInput.getSubject()){
+    String subject = serviceInput.getSubject();
+    handleRequestBySubject(subject, serviceInput, serviceOutput);
+  }
+
+  public void handleRequestBySubject(String subject, ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException{
+    LOG.debug("Doing request of type '" + subject + "'");
+    switch(subject){
     case "PEOPLE_IN_SPACE":
       doPeopleInSpaceRequest(serviceInput, serviceOutput);
       break;
@@ -367,6 +379,11 @@ public class AstroBotManager {
       voiceSsmlTextBuilder.append("<break />They are all on " + craftName);
     }
     
+    if(handholdMode){
+      int conversationLength = serviceOutput.getMetadata().getConversationHistory().size();
+      voiceSsmlTextBuilder.append(getGradualBackoffSsmlSuffix(conversationLength, true));
+    }
+    
     serviceOutput.getVisualOutput().setText(visualTextBuilder.toString());
     serviceOutput.getVoiceOutput().setSsmltext(voiceSsmlTextBuilder.toString());
   }
@@ -452,13 +469,19 @@ public class AstroBotManager {
     }
     LOG.info("CountryName: " + countryName);
     LOG.info("Administrative Area: " + administrativeAreaName);
+    
+    StringBuilder voiceOutput = new StringBuilder("The ISS is currently over " + locationName + ".");
+    if(handholdMode){
+      int conversationLength = serviceOutput.getMetadata().getConversationHistory().size();
+      voiceOutput.append(getGradualBackoffSsmlSuffix(conversationLength, true));
+    }
+    
     serviceOutput.getVisualOutput().setTitle("Where is the ISS?");
     serviceOutput.getVisualOutput().setText("The International Space Station is currently over "
         + locationName + ".\n\n Coordinates: \n "
         + spaceStationResponse.getSpaceStationLocation().getLatitude() + ","
         + spaceStationResponse.getSpaceStationLocation().getLongitude());
-    serviceOutput.getVoiceOutput().setSsmltext("The ISS is currently over "
-        + locationName + ".");
+    serviceOutput.getVoiceOutput().setSsmltext(voiceOutput.toString());
   }
 
   private void doNextLaunchRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
@@ -560,12 +583,27 @@ public class AstroBotManager {
     serviceOutput.setConversationEnded(true);
   }
 
-  protected void doRepeatRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) {
-    serviceOutput.setConversationEnded(true);
+  protected void doRepeatRequest(ServiceInput voiceInput, ServiceOutput serviceOutput) throws DerpwizardException {
+    AstroBotMetadata inputMetadata = (AstroBotMetadata)voiceInput.getMetadata();
+    if(inputMetadata == null || inputMetadata.getConversationHistory() == null || inputMetadata.getConversationHistory().size() < 1){
+      LOG.error("User ended up on repeat with no previous requests. Redirecting to launch.");
+      doHelloRequest(voiceInput, serviceOutput);
+      return;
+    }
+    
+    ConversationHistoryEntry conversationHistoryEntry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(inputMetadata.getConversationHistory(), NON_REPEATABLE_SUBJECTS);
+    if(conversationHistoryEntry == null || StringUtils.isEmpty(conversationHistoryEntry.getMessageSubject())){
+      LOG.error("User ended up on repeat with invalid conversation history. Redirecting to launch.");
+      doHelloRequest(voiceInput, serviceOutput);
+      return;
+    }
+    
+    String subject = conversationHistoryEntry.getMessageSubject();
+    handleRequestBySubject(subject, voiceInput, serviceOutput);
   }
 
   protected void doYesRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
-    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), metaSubjects);
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), META_SUBJECTS);
     if(entry.getMessageSubject().equalsIgnoreCase("PEOPLE_IN_SPACE")){
       doWhoIsInSpaceRequest(serviceInput, serviceOutput);
     }else{
@@ -577,7 +615,7 @@ public class AstroBotManager {
   }
 
   protected void doNoRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
-    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), metaSubjects);
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), META_SUBJECTS);
     if(entry.getMessageSubject().equalsIgnoreCase("PEOPLE_IN_SPACE")){
       doMenuQuery(serviceInput, serviceOutput);
     }else{
@@ -586,7 +624,7 @@ public class AstroBotManager {
   }
 
   private void doNextRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
-    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), metaSubjects);
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), META_SUBJECTS);
     
     if(entry.getMessageSubject().equalsIgnoreCase("NEXT_LAUNCH")){
       int index = ((AstroBotMetadata)serviceInput.getMetadata()).getUpcomingLaunchesIndex();
@@ -607,7 +645,7 @@ public class AstroBotManager {
   }
 
   private void doPreviousRequest(ServiceInput serviceInput, ServiceOutput serviceOutput) throws DerpwizardException {
-    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), metaSubjects);
+    ConversationHistoryEntry entry = ConversationHistoryUtils.getLastNonMetaRequestBySubject(serviceInput.getMetadata().getConversationHistory(), META_SUBJECTS);
     
     if(entry.getMessageSubject().equalsIgnoreCase("NEXT_LAUNCH")){
       int index = ((AstroBotMetadata)serviceInput.getMetadata()).getUpcomingLaunchesIndex();
@@ -706,12 +744,12 @@ public class AstroBotManager {
   }
   
   //For now, no reprompts on queries, and only reprompts on others (HELP has its own text)
-  protected String getGradualBackoffSsmlSuffix(int conversationLength, boolean isRoll){
+  protected String getGradualBackoffSsmlSuffix(int conversationLength, boolean isQuery){
     String ssmlSuffix = "";
     if(conversationLength <= 2){
-        ssmlSuffix = "<break time=\"1000ms\" />" + (isRoll ? QUERY_FOLLOW_UP : "");
+        ssmlSuffix = "<break time=\"1000ms\" />" + (isQuery ? QUERY_FOLLOW_UP : "");
     }else if(conversationLength <= 4){
-      ssmlSuffix = "<break time=\"1000ms\" />" + (isRoll ? QUERY_FOLLOW_UP_INTERMEDIATE : "");
+      ssmlSuffix = "<break time=\"1000ms\" />" + (isQuery ? QUERY_FOLLOW_UP_INTERMEDIATE : "");
     }
     return ssmlSuffix;
   }
