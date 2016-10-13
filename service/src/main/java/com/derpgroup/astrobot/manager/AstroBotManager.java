@@ -151,12 +151,13 @@ public class AstroBotManager {
   private GeoApiContext googleMapsGeoApiContext;
   private GeonamesClient geonamesClient;
   private ExecutorService executor;
-  private long responseTimeout = 4500;
+  private long responseTimeout;
   
   private boolean handholdMode = true;
   
   public AstroBotManager(MainConfig config) {
     AstroBotConfig astroBotConfig = config.getAstroBotConfig();
+    responseTimeout = astroBotConfig.getResponseTimeout();
     
     OpenNotifyConfig openNotifyConfig = astroBotConfig.getOpenNotifyConfig();
     String openNotifyApiRootUrl = openNotifyConfig.getOpenNotifyApiRootUrl();

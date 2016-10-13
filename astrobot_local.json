@@ -1,5 +1,6 @@
 {
   "astroBotConfig":{
+    "responseTimeout":5250,
     "openNotifyConfig":{
       "openNotifyApiRootUrl":"http://api.open-notify.org/",
       "astronautsCacheTtl":86400000

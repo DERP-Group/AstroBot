@@ -4,6 +4,9 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 public class AstroBotConfig {
+  
+  @NotNull
+  private Integer responseTimeout;
 
   @Valid
   @NotNull
@@ -20,6 +23,14 @@ public class AstroBotConfig {
   @Valid
   @NotNull
   private GeonamesConfig geonamesConfig;
+
+  public Integer getResponseTimeout() {
+    return responseTimeout;
+  }
+
+  public void setResponseTimeout(Integer responseTimeout) {
+    this.responseTimeout = responseTimeout;
+  }
 
   public OpenNotifyConfig getOpenNotifyConfig() {
     return openNotifyConfig;
