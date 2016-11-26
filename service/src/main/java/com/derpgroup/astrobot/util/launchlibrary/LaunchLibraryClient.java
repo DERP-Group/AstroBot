@@ -11,7 +11,10 @@ import org.slf4j.LoggerFactory;
 import com.derpgroup.astrobot.configuration.LaunchLibraryConfig;
 import com.derpgroup.astrobot.util.CacheTuple;
 import com.derpgroup.derpwizard.voice.exception.DerpwizardException;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
@@ -49,6 +52,9 @@ public class LaunchLibraryClient {
     this.agenciesToRetrieve = config.getAgenciesToRetrieve();
     
     mapper = new ObjectMapper();
+    if (config.isIgnoreUnknownJsonProperties()) {
+      mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    }
     launchesResponseCache = new CacheTuple<LaunchesResponse>();
     agenciesResponseCache = new CacheTuple<AgenciesResponse>();
     agencyIdsByAbbreviation = new HashMap<String,Integer>();
@@ -71,6 +77,8 @@ public class LaunchLibraryClient {
     try {
       HttpResponse<String> response = request.asString();
       return mapper.readValue(response.getBody(), new TypeReference<LaunchesResponse>(){});
+    }catch(JsonParseException | JsonMappingException jacksonException){
+      throw new DerpwizardException("Could not parse response from LaunchLibrary");
     } catch (Exception e) {
       LOG.error(e.getMessage());
       throw new DerpwizardException(e.getMessage());
@@ -114,6 +122,8 @@ public class LaunchLibraryClient {
     try {
       HttpResponse<String> response = request.asString();
       return mapper.readValue(response.getBody(), new TypeReference<AgenciesResponse>(){});
+    }catch(JsonParseException | JsonMappingException jacksonException){
+      throw new DerpwizardException("Could not parse response from LaunchLibrary");
     } catch (Exception e) {
       LOG.error(e.getMessage());
       throw new DerpwizardException(e.getMessage());

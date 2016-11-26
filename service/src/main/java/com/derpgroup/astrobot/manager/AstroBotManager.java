@@ -30,8 +30,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.commons.collections.MapUtils;
-import org.apache.commons.lang.math.RandomUtils;
+import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -679,7 +679,7 @@ public class AstroBotManager {
       audioTextBuilder.append("Understood. Aside from that, ");
     }
     
-    String quip = menuQueryQuips.get(RandomUtils.nextInt(menuQueryQuips.size()));
+    String quip = menuQueryQuips.get(RandomUtils.nextInt(0, menuQueryQuips.size()));
     visualTextBuilder.append(quip);
     audioTextBuilder.append(quip);
     delayedAudioTextBuilder.append("You can say <break />help<break /> if you need some suggestions for commands.");

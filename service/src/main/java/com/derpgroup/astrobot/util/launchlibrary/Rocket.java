@@ -11,7 +11,10 @@ public class Rocket {
   private String name;
   private String configuration;
   private String familyName;
+  private String wikiURL;
   private String imageURL;
+  private String infoURL;
+  private String[] infoURLs;
   private int[] imageSizes;
   private Agency[] agencies;
 
@@ -71,5 +74,29 @@ public class Rocket {
 
   public void setAgencies(Agency[] agencies) {
     this.agencies = agencies;
+  }
+
+  public String getWikiURL() {
+    return wikiURL;
+  }
+
+  public void setWikiURL(String wikiURL) {
+    this.wikiURL = wikiURL;
+  }
+
+  public String getInfoURL() {
+    return infoURL;
+  }
+
+  public void setInfoURL(String infoURL) {
+    this.infoURL = infoURL;
+  }
+
+  public String[] getInfoURLs() {
+    return infoURLs;
+  }
+
+  public void setInfoURLs(String[] infoURLs) {
+    this.infoURLs = infoURLs;
   }
 }
