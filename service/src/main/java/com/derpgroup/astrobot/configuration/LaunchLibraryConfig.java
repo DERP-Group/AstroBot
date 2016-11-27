@@ -11,6 +11,7 @@ public class LaunchLibraryConfig {
   private int agenciesToRetrieve = 500;
   private long launchesCacheTtl = 21600000;
   private long agenciesCacheTtl = 604800000;
+  private boolean ignoreUnknownJsonProperties = true;
 
   public String getLaunchLibraryApiRootUrl() {
     return launchLibraryApiRootUrl;
@@ -58,5 +59,14 @@ public class LaunchLibraryConfig {
 
   public void setAgenciesCacheTtl(long agenciesCacheTtl) {
     this.agenciesCacheTtl = agenciesCacheTtl;
+  }
+
+  public boolean isIgnoreUnknownJsonProperties() {
+    return ignoreUnknownJsonProperties;
+  }
+
+  public void setIgnoreUnknownJsonProperties(
+      boolean ignoreUnknownJsonProperties) {
+    this.ignoreUnknownJsonProperties = ignoreUnknownJsonProperties;
   }
 }

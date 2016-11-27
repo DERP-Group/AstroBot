@@ -1,5 +1,6 @@
 {
   "astroBotConfig":{
+    "responseTimeout":5250,
     "openNotifyConfig":{
       "openNotifyApiRootUrl":"http://api.open-notify.org/",
       "astronautsCacheTtl":86400000
@@ -10,7 +11,8 @@
       "upcomingLaunchesToRetrieve":100,
       "agenciesToRetrieve":500,
       "launchesCacheTtl":21600000,
-      "agenciesCacheTtl":604800000
+      "agenciesCacheTtl":604800000,
+      "ignoreUnknownJsonProperties":true
     },
     "geonamesConfig":{
       "geonamesApiRootUrl":"http://api.geonames.org",
@@ -33,6 +35,19 @@
     ]
   },
   "logging": {
-    "level": "INFO"
+    "level": "INFO",
+    "loggers": {
+      "com.derpgroup": {
+        "level": "INFO",
+        "appenders": [
+          {
+            "type": "file",
+            "currentLogFilename": "~/testoutput/astrobot.log",
+            "archivedLogFilenamePattern": "~/testoutput/astrobot-%d.log",
+            "archivedFileCount": 5
+          }
+        ]
+      }
+    }
   }
 }

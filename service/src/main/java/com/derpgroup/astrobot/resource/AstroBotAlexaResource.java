@@ -219,7 +219,7 @@ public class AstroBotAlexaResource {
         break;
       }
       
-      return buildOutput(outputSpeech, card, reprompt, shouldEndSession, outputMetadata);
+      return AlexaUtils.buildOutput(outputSpeech, card, reprompt, shouldEndSession, mapper.convertValue(outputMetadata, new TypeReference<Map<String,Object>>(){}));
     }catch(DerpwizardException e){
       LOG.debug(e.getMessage());
       return new DerpwizardExceptionAlexaWrapper(e, "1.0",mapper.convertValue(outputMetadata, new TypeReference<Map<String,Object>>(){}));
@@ -227,24 +227,5 @@ public class AstroBotAlexaResource {
       LOG.debug(t.getMessage());
       return new DerpwizardExceptionAlexaWrapper(new DerpwizardException(t.getMessage()),"1.0", mapper.convertValue(outputMetadata, new TypeReference<Map<String,Object>>(){}));
     }
-  }
-  
-  private SpeechletResponseEnvelope buildOutput(OutputSpeech outputSpeech, Card card, Reprompt reprompt, boolean shouldEndSession, AstroBotMetadata outputMetadata){
-
-    Map<String,Object> sessionAttributes = mapper.convertValue(outputMetadata, new TypeReference<Map<String,Object>>(){});
-    SpeechletResponseEnvelope responseEnvelope = new SpeechletResponseEnvelope();
-    
-    SpeechletResponse speechletResponse = new SpeechletResponse();
-
-    speechletResponse.setOutputSpeech(outputSpeech);
-    speechletResponse.setCard(card);
-    speechletResponse.setReprompt(reprompt);
-    speechletResponse.setShouldEndSession(shouldEndSession);
-    
-    responseEnvelope.setResponse(speechletResponse);
-    
-    responseEnvelope.setSessionAttributes(sessionAttributes);
-
-    return responseEnvelope;
   }
 }
