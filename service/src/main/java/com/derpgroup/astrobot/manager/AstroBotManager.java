@@ -38,6 +38,7 @@ import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com._3po_labs.derpwizard.core.exception.DerpwizardException;
 import com.derpgroup.astrobot.AstroBotMetadata;
 import com.derpgroup.astrobot.MixInModule;
 import com.derpgroup.astrobot.configuration.AstroBotConfig;
@@ -54,7 +55,6 @@ import com.derpgroup.astrobot.util.opennotify.Astronaut;
 import com.derpgroup.astrobot.util.opennotify.AstronautsResponse;
 import com.derpgroup.astrobot.util.opennotify.OpenNotifyClient;
 import com.derpgroup.astrobot.util.opennotify.SpaceStationLocationResponse;
-import com.derpgroup.derpwizard.voice.exception.DerpwizardException;
 import com.derpgroup.derpwizard.voice.model.ConversationHistoryEntry;
 import com.derpgroup.derpwizard.voice.model.ServiceInput;
 import com.derpgroup.derpwizard.voice.model.ServiceOutput;

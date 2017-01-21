@@ -5,8 +5,8 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com._3po_labs.derpwizard.core.exception.DerpwizardException;
 import com.derpgroup.astrobot.configuration.GeonamesConfig;
-import com.derpgroup.derpwizard.voice.exception.DerpwizardException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mashape.unirest.http.HttpResponse;
